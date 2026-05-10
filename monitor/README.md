@@ -4,7 +4,6 @@
 
 <img width="1612" height="2023" alt="Screenshot_3" src="https://github.com/user-attachments/assets/4e5728c6-0905-469f-9038-04c45cba0538" />
 
-
 ---
 
 ## 📋 Содержание
@@ -16,8 +15,10 @@
 5. [Использование](#использование)
 6. [API Reference](#api-reference)
 7. [Панель управления](#панель-управления)
-8. [Настройка безопасности](#настройка-безопасности)
-9. [Решение проблем](#решение-проблем)
+8. [Конфигурация](#конфигурация)
+9. [Тема оформления](#тема-оформления)
+10. [Настройка безопасности](#настройка-безопасности)
+11. [Решение проблем](#решение-проблем)
 
 ---
 
@@ -73,7 +74,8 @@
 ### 1. Backend: `api.php` — Сбор метрик
 
 **Язык:** PHP 7.4+  
-**Зависимости:** `chronyc`, `gpsd`, `systemctl`, `/proc`, `/sys`
+**Зависимости:** `chronyc`, `gpsd`, `systemctl`, `/proc`, `/sys`  
+**Размер:** ~8 KB
 
 #### Основные функции
 
@@ -96,36 +98,69 @@
   - `warning` — жёлтый (offset 100-500 нс, < 2 источников)
   - `error` — красный (offset > 500 нс, нет синхронизации)
 
+#### Обработка ошибок
+
+Если команда chronyc или gpsd не доступны, API возвращает `error` вместо значений, frontend отображает "--" или сообщение об ошибке.
+
 ---
 
 ### 2. Backend: `action.php` — Выполнение команд
 
 **Язык:** PHP 7.4+  
-**Зависимости:** `sudo`, `systemctl`, `chronyc`, `stty`, `cat`, `strings`
+**Зависимости:** `sudo`, `systemctl`, `chronyc`, `stty`, `cat`, `strings`, `lsof`  
+**Размер:** ~2.5 KB
 
 #### Поддерживаемые действия
 
-| Action | Команда | Назначение |
-|--------|---------|-----------|
-| `makestep` | `sudo chronyc makestep` | Принудительная синхронизация (если смещение > 1 сек) |
-| `restart_gpsd` | `sudo systemctl restart gpsd` | Перезагрузка демона GPS |
-| `restart_chrony` | `sudo systemctl restart chrony` | Перезагрузка NTP демона |
-| `raw_port` | `stty -F /dev/ttyAMA0 && cat` | Чтение сырых NMEA данных с UART (20 строк за 3 сек) |
-| `port_info` | `stty -F /dev/ttyAMA0` + `lsof` | Информация о параметрах порта и использующих процессах |
+| Action | Команда | Назначение | Статус |
+|--------|---------|-----------|--------|
+| `makestep` | `sudo chronyc makestep` | Принудительная синхронизация (если смещение > 1 сек) | 200 OK |
+| `restart_gpsd` | `sudo systemctl restart gpsd` | Перезагрузка демона GPS (проверяет через 2с) | active/inactive |
+| `restart_chrony` | `sudo systemctl restart chrony` | Перезагрузка NTP демона (проверяет через 2с) | active/inactive |
+| `raw_port` | `stty -F /dev/ttyAMA0 && cat /dev/ttyAMA0` | Чтение сырых NMEA данных с UART (20 строк, 3 сек таймаут) | NMEA строки |
+| `port_info` | `stty -F /dev/ttyAMA0` + `lsof /dev/ttyAMA0` | Информация о параметрах порта и использующих процессах | stty + lsof вывод |
+| `offset_history` | `cat /var/log/chrony/measurements.log` | История смещения из лога chrony (последние 200 записей) | JSON массив точек |
 
 #### Функция runCommand()
 
 Вспомогательная функция для безопасного выполнения команд:
-- Захватывает `stdout` и `stderr`
+- Захватывает `stdout` и `stderr` (перенаправление `2>&1`)
 - Возвращает код выхода и вывод
 - Используется `exec()` с перехватом в третий аргумент
+- Все параметры экранируются через `escapeshellarg()`
 
-#### Пример ответа
+#### Примеры ответов
 
+**Успех (makestep):**
 ```json
 {
   "success": true,
   "output": "200 OK\nClock was stepped by 0.000000042 seconds"
+}
+```
+
+**Успех (restart):**
+```json
+{
+  "success": true,
+  "output": "gpsd active"
+}
+```
+
+**Успех (raw_port):**
+```json
+{
+  "success": true,
+  "output": "$GNRMC,143245.00,A,5545.19286,N,...\n...",
+  "baud": 9600
+}
+```
+
+**Ошибка:**
+```json
+{
+  "success": false,
+  "output": "Permission denied"
 }
 ```
 
@@ -134,25 +169,8 @@
 ### 3. Frontend: `index.html` — Интерактивный дашборд
 
 **Язык:** HTML5 + CSS3 + JavaScript (vanilla, без фреймворков)  
-**Размер:** ~22 KB (минифицировано ~13 KB)
-
-#### Стили и тема
-
-**Цветовая схема:** Темная, с неоновыми акцентами (cyberpunk-style)
-
-```css
---bg:        #0a0e14    /* чёрный фон */
---bg2:       #0f141c    /* карточки */
---bg3:       #151c27    /* заголовки блоков */
---border:    #1e2a3a    /* разделители */
---accent:    #00d4ff    /* голубой неон */
---accent2:   #0099cc    /* голубой приглушённый */
---green:     #39d98a    /* статус OK */
---yellow:    #f5c842    /* статус WARNING */
---red:       #ff4d6a    /* статус ERROR */
---mono:      'JetBrains Mono', monospace
---sans:      'Space Grotesk', sans-serif
-```
+**Размер:** ~22 KB (встроены CSS и JS)  
+**Минифицировано:** ~13 KB
 
 #### Основные компоненты UI
 
@@ -160,18 +178,20 @@
 - Формат: `HH:MM:SS.mmm`
 - Дата с названием дня недели и часовым поясом
 - Обновляется каждые 10 мс
+- Глобальное переходит синхронизация через `setInterval()`
 
 ##### 2. Header
 - Логотип `NTP//MON` с акцентом
-- Хостнейм сервера
+- Хостнейм сервера (из API)
 - Сервис-пилюли (chrony/gpsd/PPS статус)
 - Время последнего обновления + кнопка Refresh
+- Mode badge (NTP / U-Center) для отображения режима работы
 
 ##### 3. Metric Cards (верхний ряд)
 8 карточек с основными метриками:
 - Stratum, Смещение, RMS offset, Частота
 - Спутники (used/total), Онлайн источники
-- UART baudrate, Leap статус
+- Leap статус, Дополнительная метрика
 
 Цветовое кодирование:
 - `good` — зелёная полоса сверху
@@ -182,58 +202,60 @@
 
 **Левая колонка: Источники времени**
 - Таблица с состояниями источников
-- Состояния: `*`=выбран, `+`=комбинируется, `-`=не используется, `x`=ошибка, `?`=недоступен
-- Reach bar (8 битов последних попыток пинга)
+- Состояния: `*`=выбран, `+`=комбинируется, `-`=не используется, `x`=ошибка, `~`=нестабилен, `?`=недоступен
+- Reach bar (8 битов восьмеричного кода, последние попытки соединения)
 
 **Средняя колонка: GPS / GNSS**
 - Режим фикса (No data / No fix / 2D / 3D)
-- Координаты (lat, lon, alt)
+- Координаты (lat, lon, alt) с точностью 6/6/1 знака
 - DOP значения (HDOP, VDOP, PDOP)
-- PPS статус (/dev/pps0)
+- PPS статус (/dev/pps0 exists?)
 - Спутники (used / total)
 
 **Правая колонка: Карта неба (Skyview)**
-- Полярная проекция (азимут/возвышение)
-- SVG рендеринг спутников:
-  - **Круг** = GPS, QZSS
-  - **Квадрат** = GLONASS
-  - **Треугольник △** = Galileo
-  - **Треугольник ▽** = BeiDou
-  - **Ромб ◇** = SBAS/WAAS
-- Цвет по SNR:
-  - Зелёный: ≥40 dBHz
-  - Жёлтый: 30-39
-  - Красный: <30
+- Полярная проекция (азимут/возвышение) в SVG
+- Символы спутников по GNSS ID:
+  - **Круг** = GPS (0), QZSS (5)
+  - **Квадрат** = GLONASS (6)
+  - **Треугольник △** = Galileo (2)
+  - **Треугольник ▽** = BeiDou (3)
+  - **Ромб ◇** = SBAS (1)
+- Цвет по SNR (Signal-to-Noise Ratio):
+  - Зелёный: ≥40 dBHz (отличный сигнал)
+  - Жёлтый: 30-39 dBHz (хороший сигнал)
+  - Красный: <30 dBHz (слабый сигнал)
 - Контур без заливки = видим, но не используется
 - Легенда с расшифровкой
 
 ##### 5. Вторая строка (Sync + Clients + System)
 
 **Синхронизация (Tracking)**
-- Stratum, Reference ID, Ref time
+- Stratum, Reference ID, Ref time (UTC)
 - Смещение, Last offset, RMS offset
 - Частота, Skew, Root delay/dispersion
 - Leap status
 
 **Клиенты (NTP Clients)**
 - Таблица подключённых клиентов
-- Хостнейм, кол-во NTP запросов, потеряно пакетов
+- Хостнейм/IP, кол-во NTP запросов, потеряно пакетов
+- Status badge (warning если нет клиентов)
 
 **Система (System)**
-- Uptime, температура CPU, нагрузка
-- Использование памяти (прогресс-бар)
+- Uptime, температура CPU, нагрузка (1/5/15 мин)
+- Использование памяти (прогресс-бар с цветом)
 - Статус chrony, gpsd, PPS, UART
 
 ##### 6. Диаграмма (Chart)
 
 **График смещения времени (System Offset)**
-- Последние 300 точек измерений
+- Последние ~300 точек из `offset_history`
 - Ось Y: наносекунды (автомасштабирование)
 - Ось X: время (HH:MM:SS)
 - Сетка 4x4 с легендой
 - Нулевая линия пунктиром
-- Закрашенная область под графиком
-- Точка и значение в конце графика
+- Закрашенная область под графиком с градиентом
+- Последняя точка с координатами
+- Если нет лога chrony — "Включите логирование" подсказка
 
 ##### 7. Sourcestats
 
@@ -248,19 +270,18 @@
 - `↺ Перезапуск chrony` — restart NTP
 
 **Правая часть: Диагностика UART**
-- `📡 Сырые данные NMEA` — 20 строк с UART
-- `ℹ Параметры порта` — stty + lsof вывод
+- `📡 Сырые данные NMEA` — `raw_port`
+- `ℹ Параметры порта` — `port_info`
 
 Оба раздела имеют область вывода где появляются результаты команд.
 
 #### JavaScript логика
 
-**Основной цикл:**
+**Основной цикл (из config.json):**
 ```javascript
-// Получение данных каждые ~15 сек
-fetch('/monitor/api.php')
-  .then(r => r.json())
-  .then(data => render(data))
+// Получение данных каждые N сек (по умолчанию 15)
+refresh_interval = config.monitor.refresh_interval || 15;
+setInterval(refresh, refresh_interval * 1000);
 ```
 
 **SVG Skyplot рендеринг:**
@@ -293,19 +314,230 @@ snrColor(snr) {
 **Reach Bar (восьмибитный код):**
 ```javascript
 reachBar(octalStr) {
-  dec = parseInt(octalStr, 8);
+  dec = parseInt(octalStr, 8);  // преобразование из восьмеричной
+  bits = [];
   for (i = 7; i >= 0; i--) {
     bits.push((dec >> i) & 1);  // [1,0,1,1,1,0,1,1]
   }
-  // отобразить как 8 маленьких квадратов (заполненных или пустых)
+  // 1 = успешное соединение, 0 = неудачное
 }
 ```
 
-**Chart (график offset):**
-- Полупрозрачная область под графиком с градиентом
-- Плавная линия графика с закруглениями в углах
-- Автомасштабирование по значениям с 15% запасом
-- Последняя точка с координатами
+**Автозагрузка config.json:**
+```javascript
+// При загрузке страницы
+fetch('config.json')
+  .then(r => r.json())
+  .then(cfg => {
+    config = cfg;
+    // Применить параметры из конфига
+    applyConfig(config);
+    refresh();
+  })
+```
+
+---
+
+### 4. Конфигурация: `config.json`
+
+**Размер:** ~1.5 KB  
+**Назначение:** Централизованное управление всеми параметрами системы без редактирования кода
+
+#### Основные разделы
+
+```json
+{
+  "monitor": {
+    "refresh_interval": 15,              // частота обновления API (сек)
+    "theme": "auto",                     // "dark" | "light" | "auto"
+    "theme_dark_from": "20:00",          // когда переходить в тёмную (если auto)
+    "theme_light_from": "07:00",         // когда переходить в светлую (если auto)
+    "title": "NTP Monitor"               // заголовок вкладки
+  },
+  
+  "server": {
+    "hostname": "",                      // имя сервера (пусто = из API)
+    "ntp_port": 123,                     // порт NTP
+    "allow_subnet": "192.168.0.0/16"     // для ограничения доступа
+  },
+  
+  "gnss": {
+    "device": "/dev/ttyAMA0",            // UART устройство GPS
+    "pps_device": "/dev/pps0",           // PPS сигнал
+    "baudrate": 9600,                    // скорость UART (может быть 38400)
+    "pps_gpio": 4                        // GPIO пин для PPS
+  },
+  
+  "map": {
+    "enabled": true,                     // показывать ли карту
+    "zoom": 14,                          // уровень зума (если реализована)
+    "tile_server": "https://tile.openstreetmap.org/..."  // источник плиток
+  },
+  
+  "telegram": {
+    "enabled": true,                     // включить ли оповещения
+    "bot_token": "TOKEN",                // Telegram Bot API token
+    "chat_id": "ID",                     // chat ID для отправки сообщений
+    "proxy_enabled": true,               // использовать ли прокси
+    "proxy_host": "HOST",
+    "proxy_port": 1080,
+    "proxy_user": "USER",
+    "proxy_pass": "PASS",
+    "alerts": {
+      "gpsd_down": true,                 // алерт если gpsd упал
+      "chrony_down": true,               // алерт если chrony упал
+      "pps_lost": true,                  // алерт если нет PPS
+      "stratum_change": true,            // алерт при изменении stratum
+      "offset_threshold_ms": 10          // алерт если offset > 10мс
+    }
+  },
+  
+  "ser2net": {
+    "port": 2947,                        // порт ser2net (если используется)
+    "baudrate": 9600                     // скорость
+  }
+}
+```
+
+#### Применение конфига на frontend
+
+```javascript
+// Загрузка при старте
+fetch('config.json')
+  .then(r => r.json())
+  .then(cfg => {
+    // Установить интервал обновления
+    refresh_interval = cfg.monitor.refresh_interval || 15;
+    
+    // Применить тему
+    applyTheme(cfg.monitor.theme);
+    
+    // Установить заголовок
+    document.title = cfg.monitor.title;
+    
+    // Инициализировать Telegram уведомления (если включены)
+    if (cfg.telegram.enabled) {
+      initTelegram(cfg.telegram);
+    }
+  })
+```
+
+#### Применение конфига на backend
+
+В `api.php` и `action.php` можно добавить:
+
+```php
+<?php
+$config = json_decode(file_get_contents('config.json'), true);
+
+// Использовать baudrate из конфига для raw_port
+$baud = $config['gnss']['baudrate'] ?? 9600;
+
+// Проверить разрешённые подсети (при наличии)
+$allow_subnet = $config['server']['allow_subnet'] ?? '';
+?>
+```
+
+---
+
+### 5. Стили: `style.css`
+
+**Размер:** ~12 KB  
+**Назначение:** Полная стилизация с поддержкой светлой и тёмной темы  
+**Встроенный в index.html:** Нет, как отдельный файл для лучшей организации
+
+#### CSS переменные (Dark theme по умолчанию)
+
+```css
+:root {
+  /* Фон и границы */
+  --bg:     #0a0e14;  /* основной фон */
+  --bg2:    #0f141c;  /* карточки */
+  --bg3:    #151c27;  /* заголовки */
+  --border: #1e2a3a;  /* основная граница */
+  --border2:#243347;  /* вторичная граница */
+  
+  /* Текст */
+  --text:   #c8d8e8;  /* основной текст */
+  --text2:  #7a9ab8;  /* вторичный текст */
+  --text3:  #4a6a88;  /* третичный текст (слабый) */
+  
+  /* Акценты */
+  --accent: #00d4ff;  /* голубой неон (основной) */
+  --accent2:#0099cc;  /* голубой приглушённый */
+  
+  /* Статусы */
+  --green:  #39d98a;  /* OK (зелёный) */
+  --green2: #1a7a4a;  /* фон для зелёного */
+  --yellow: #f5c842;  /* WARNING (жёлтый) */
+  --yellow2:#7a6010;  /* фон для жёлтого */
+  --red:    #ff4d6a;  /* ERROR (красный) */
+  --red2:   #7a1a28;  /* фон для красного */
+  --purple: #b57aff;  /* альтернативный цвет */
+  
+  /* Утилиты */
+  --shadow: 0 2px 12px rgba(0,0,0,.4);
+  --mono:   'JetBrains Mono', monospace;
+  --sans:   'Space Grotesk', sans-serif;
+  --r: 6px;  /* border-radius */
+}
+```
+
+#### Light theme (переопределение)
+
+```css
+[data-theme="light"] {
+  --bg:     #f0f4f8;  /* светлый фон */
+  --bg2:    #ffffff;  /* белый фон карточек */
+  --text:   #1e293b;  /* тёмный текст */
+  --accent: #0284c7;  /* синий вместо голубого */
+  /* ... остальные переопределения ... */
+}
+```
+
+#### Компоненты в CSS
+
+- **Clock bar** — часы в реальном времени с градиентом
+- **Header** — логотип, хостнейм, сервис-пилюли, кнопки
+- **Metric cards** — сетка карточек с цветными полосами статуса
+- **Blocks** — блоки информации с заголовками и бейджами
+- **Tables** — стилизованные таблицы с hover эффектами
+- **Buttons** — все варианты кнопок (primary, warn, green, danger)
+- **Skyview** — SVG контейнер для полярной проекции спутников
+- **Chart** — canvas элемент для графика смещения
+- **Forms** — инпуты, textarea для Repair Panel
+- **Responsive** — медиа-запросы для мобильных устройств
+
+#### Media queries
+
+```css
+@media(max-width:1100px) {
+  .grid-top { grid-template-columns: 1fr 1fr; }  /* 3 → 2 колоны */
+  .grid-mid { grid-template-columns: 1fr 1fr; }
+}
+
+@media(max-width:700px) {
+  .grid-top, .grid-mid, .grid-repair { grid-template-columns: 1fr; }  /* 2 → 1 колона */
+  .clock-time { font-size: 2rem; }  /* масштаб часов */
+}
+```
+
+#### Поддержка тем через JavaScript
+
+```javascript
+// Переключение темы
+function setTheme(theme) {
+  if (theme === 'auto') {
+    // Определить по времени суток
+    const hour = new Date().getHours();
+    const darkFrom = parseInt(config.monitor.theme_dark_from.split(':')[0]);
+    const lightFrom = parseInt(config.monitor.theme_light_from.split(':')[0]);
+    theme = (hour >= darkFrom || hour < lightFrom) ? 'dark' : 'light';
+  }
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('ntp-monitor-theme', theme);
+}
+```
 
 ---
 
@@ -379,23 +611,34 @@ sudo usermod -aG gpio www-data      # для PPS GPIO
 
 ```bash
 # Через SCP
-scp api.php action.php index.html root@<IP_RPi>:/var/www/html/monitor/
+scp api.php action.php index.html config.json style.css root@<IP_RPi>:/var/www/html/monitor/
 
 # Или локально
 sudo mkdir -p /var/www/html/monitor
-sudo cp api.php action.php index.html /var/www/html/monitor/
+sudo cp api.php action.php index.html config.json style.css /var/www/html/monitor/
 
 # Установить права
 sudo chown -R www-data:www-data /var/www/html/monitor/
 sudo chmod 755 /var/www/html/monitor/
-sudo chmod 644 /var/www/html/monitor/*.{php,html}
+sudo chmod 644 /var/www/html/monitor/*.{php,html,json,css}
 ```
 
-### 2. Настройка веб-сервера
+### 2. Редактирование config.json
+
+```bash
+sudo nano /var/www/html/monitor/config.json
+```
+
+Основные параметры:
+- `refresh_interval` — частота обновления (рекомендуется 15-30 сек)
+- `theme` — "dark" или "light"
+- `baudrate` — скорость UART (9600 или 38400)
+- `telegram.enabled` — включить ли оповещения (требует bot token)
+
+### 3. Настройка веб-сервера
 
 #### Apache (рекомендуется)
 
-Убедиться, что PHP включён:
 ```bash
 sudo a2enmod php8.2
 # или php7.4, в зависимости от версии
@@ -436,7 +679,7 @@ sudo nginx -t  # проверить конфиг
 sudo systemctl restart nginx
 ```
 
-### 3. Проверка зависимостей
+### 4. Проверка зависимостей
 
 ```bash
 # Проверить наличие chronyc
@@ -458,14 +701,9 @@ ls -l /dev/ttyAMA0
 
 # Тестировать www-data
 sudo -u www-data php /var/www/html/monitor/api.php | jq .tracking
-# {
-#   "reference_id": "50505300 (PPS)",
-#   "stratum": 1,
-#   ...
-# }
 ```
 
-### 4. Первый запуск
+### 5. Первый запуск
 
 ```bash
 # Открыть в браузере
@@ -542,8 +780,9 @@ $GNGST,143245.00,0.000,2.123,1.876,0.812,45.234,0.987,1.234,2.345*1F
 - `+` = комбинируется (используется в алгоритме)
 - `-` = не используется (слишком плохое качество)
 - `x` = ошибка (не доступен / неправильный stratum)
+- `~` = нестабилен (проблемы с качеством)
 - `?` = неизвестно (нет данных)
-- Reach = последние 8 попыток соединения (8 бит)
+- Reach = последние 8 попыток соединения (8 бит восьмеричного кода)
 
 **Пример интерпретации:**
 ```
@@ -598,63 +837,9 @@ POST /monitor/action.php (в body: action=<ACTION>)
 ```
 
 **Параметры:**
-- `action` — одна из: `makestep`, `restart_gpsd`, `restart_chrony`, `raw_port`, `port_info`
+- `action` — одна из: `makestep`, `restart_gpsd`, `restart_chrony`, `raw_port`, `port_info`, `offset_history`
 
-#### Ответ API (api.php)
-
-**Успех:**
-```json
-{
-  "timestamp": "2026-05-10T14:32:45+00:00",
-  "timestamp_ms": 1715338365123,
-  "tracking": {
-    "reference_id": "50505300 (PPS)",
-    "stratum": 1,
-    "system_time": 0.000000477,
-    "status": "good"
-  },
-  "sources": { ... },
-  "gpsd": { ... },
-  "system": { ... }
-}
-```
-
-**Ошибка chronyc:**
-```json
-{
-  "tracking": {
-    "error": "chronyc tracking failed"
-  }
-}
-```
-
-#### Ответ Action (action.php)
-
-**Успех (makestep):**
-```json
-{
-  "success": true,
-  "output": "200 OK\nClock was stepped by 0.000000042 seconds"
-}
-```
-
-**Успех (restart):**
-```json
-{
-  "success": true,
-  "output": "gpsd active"
-}
-```
-
-**Ошибка:**
-```json
-{
-  "success": false,
-  "output": "Permission denied (check sudoers)"
-}
-```
-
-### Примеры запросов
+#### Примеры запросов
 
 #### 1. Получить весь JSON в терминале
 
@@ -673,38 +858,24 @@ curl http://192.168.1.10/monitor/api.php | jq .tracking
 ```bash
 curl http://192.168.1.10/monitor/api.php | \
   jq '.sources.list[] | {name, state, offset}'
-
-# Вывод:
-# {
-#   "name": "PPS",
-#   "state": "*",
-#   "offset": "-159ns"
-# }
 ```
 
-#### 4. Проверить GPS координаты
-
-```bash
-curl http://192.168.1.10/monitor/api.php | \
-  jq '.gpsd.fix | {mode_label, lat, lon, alt}'
-```
-
-#### 5. Выполнить makestep
+#### 4. Выполнить makestep
 
 ```bash
 curl "http://192.168.1.10/monitor/action.php?action=makestep" | jq .
 ```
 
-#### 6. Проверить UART
+#### 5. Проверить UART
 
 ```bash
 curl "http://192.168.1.10/monitor/action.php?action=raw_port" | jq -r .output
 ```
 
-#### 7. Получить информацию о порте
+#### 6. Получить историю смещения
 
 ```bash
-curl "http://192.168.1.10/monitor/action.php?action=port_info" | jq -r .output
+curl "http://192.168.1.10/monitor/action.php?action=offset_history" | jq .
 ```
 
 ---
@@ -718,24 +889,106 @@ curl "http://192.168.1.10/monitor/action.php?action=port_info" | jq -r .output
 | Кнопка | Команда | Описание |
 |--------|---------|---------|
 | `⏱ Принудительная синхронизация` | `makestep` | Немедленное выравнивание часов (для больших ошибок > 1 сек) |
-| `↺ Перезапуск gpsd` | `systemctl restart gpsd` | Перезагрузка GPS демона |
-| `↺ Перезапуск chrony` | `systemctl restart chrony` | Перезагрузка NTP демона |
+| `↺ Перезапуск gpsd` | `systemctl restart gpsd` | Перезагрузка GPS демона (проверяет статус через 2с) |
+| `↺ Перезапуск chrony` | `systemctl restart chrony` | Перезагрузка NTP демона (проверяет статус через 2с) |
 
 #### Диагностика UART
 
 | Кнопка | Команда | Описание |
 |--------|---------|---------|
-| `📡 Сырые данные NMEA` | `stty + timeout 3 cat /dev/ttyAMA0` | Прямое чтение NMEA с порта (20 строк, 3 сек) |
-| `ℹ Параметры порта` | `stty + lsof` | Текущие настройки UART и какой процесс его использует |
+| `📡 Сырые данные NMEA` | `raw_port` | Прямое чтение NMEA с порта (20 строк, 3 сек таймаут) |
+| `ℹ Параметры порта` | `port_info` | Текущие настройки UART (stty) и использующие процессы (lsof) |
 
 ### Обработка результатов
 
 После выполнения команды:
-- **Зелёный текст** = успех (в `repair-output` или `port-output`)
+- **Зелёный текст** = успех (в `repair-output`)
 - **Красный текст** = ошибка
 - **Spinning loader** = выполняется (с текстом "Выполняется...")
 - Все кнопки блокируются на время выполнения
 - Окно вывода может быть прокручено (max-height: 200px)
+
+---
+
+## Конфигурация
+
+### Параметры config.json
+
+Все параметры системы хранятся в `config.json`:
+
+```json
+{
+  "monitor": {
+    "refresh_interval": 15,              // сек между обновлениями
+    "theme": "auto",                     // "dark" | "light" | "auto"
+    "theme_dark_from": "20:00",          // время перехода в тёмную
+    "theme_light_from": "07:00",         // время перехода в светлую
+    "title": "NTP Monitor"               // заголовок страницы
+  },
+  "server": { ... },
+  "gnss": { ... },
+  "map": { ... },
+  "telegram": { ... },
+  "ser2net": { ... }
+}
+```
+
+### Редактирование параметров
+
+Изменения вступают в силу **автоматически** при перезагрузке страницы (без перезагрузки сервера):
+
+```bash
+# Изменить интервал обновления
+nano /var/www/html/monitor/config.json
+# Измените: "refresh_interval": 30
+
+# Перезагрузите страницу в браузере — изменения сразу применятся
+```
+
+---
+
+## Тема оформления
+
+### Поддерживаемые темы
+
+1. **Dark** (по умолчанию)
+   - Чёрный фон #0a0e14
+   - Голубой неон #00d4ff
+   - Оптимальна для ночного просмотра
+
+2. **Light**
+   - Светлый фон #f0f4f8
+   - Синий акцент #0284c7
+   - Оптимальна для дневного просмотра
+
+3. **Auto**
+   - Автоматическое переключение по времени суток
+   - Тёмная: 20:00 - 07:00
+   - Светлая: 07:00 - 20:00
+
+### Переключение темы
+
+```javascript
+// Вручную в консоли браузера
+setTheme('dark');
+setTheme('light');
+setTheme('auto');
+
+// Сохраняется в localStorage
+// localStorage.getItem('ntp-monitor-theme')
+```
+
+### Использование в config.json
+
+```json
+{
+  "monitor": {
+    "theme": "auto",
+    "theme_dark_from": "20:00",
+    "theme_light_from": "07:00"
+  }
+}
+```
 
 ---
 
@@ -770,10 +1023,6 @@ location /monitor/ {
 }
 ```
 
-```bash
-sudo nginx -s reload
-```
-
 ### 2. HTTPS (TLS/SSL)
 
 #### Let's Encrypt (бесплатный сертификат)
@@ -785,24 +1034,6 @@ sudo certbot --apache -d ntp.example.com
 
 # Автоматическое обновление
 sudo systemctl enable certbot.timer
-```
-
-### 3. Аутентификация API
-
-Добавить в начало `api.php` и `action.php`:
-
-```php
-<?php
-// Базовая HTTP аутентификация
-if (!isset($_SERVER['PHP_AUTH_USER']) || 
-    $_SERVER['PHP_AUTH_USER'] !== 'admin' ||
-    $_SERVER['PHP_AUTH_PW'] !== 'your-password') {
-    header('WWW-Authenticate: Basic realm="NTP Monitor"');
-    http_response_code(401);
-    exit('401 Unauthorized');
-}
-// ... остальной код
-?>
 ```
 
 ---
@@ -829,6 +1060,35 @@ php -l /var/www/html/monitor/api.php
 
 # 5. Тестировать напрямую
 php /var/www/html/monitor/api.php | head -c 200
+```
+
+### config.json не загружается
+
+```bash
+# 1. Проверить синтаксис JSON
+jq . /var/www/html/monitor/config.json
+
+# 2. Проверить права доступа
+sudo chmod 644 /var/www/html/monitor/config.json
+
+# 3. Проверить консоль браузера (F12 → Console)
+# Должно быть: "config loaded: {...}"
+
+# 4. Если нет config.json — frontend работает с defaults
+```
+
+### Тема не переключается
+
+```javascript
+// В консоли браузера (F12)
+// Проверить текущую тему
+document.documentElement.getAttribute('data-theme');
+
+// Проверить config
+console.log(config.monitor.theme);
+
+// Переключить вручную
+document.documentElement.setAttribute('data-theme', 'light');
 ```
 
 ### action.php возвращает "Permission denied"
@@ -877,85 +1137,6 @@ sudo stty -F /dev/ttyAMA0 38400 raw && sudo timeout 2 cat /dev/ttyAMA0
 
 # 3. Перезагрузить
 sudo systemctl restart gpsd
-
-# 4. Посмотреть детали
-sudo gpsd -N -D 4 -n -F /run/gpsd.sock /dev/ttyAMA0
-```
-
-### PPS не пульсирует
-
-```bash
-# 1. Проверить устройство
-ls /dev/pps0
-
-# 2. Протестировать
-sudo ppstest /dev/pps0
-# source 0 - assert ...
-
-# 3. Проверить логи
-sudo dmesg | grep pps
-
-# 4. Если нет — добавить overlay
-sudo nano /boot/firmware/config.txt
-# dtoverlay=pps-gpio,gpiopin=4
-sudo reboot
-```
-
-### GPS фикс не получается
-
-```bash
-# 1. Проверить антенну (открытое небо, минимум 5 мин)
-
-# 2. Проверить питание модуля (3.3V)
-
-# 3. Проверить связь
-sudo cgps -s
-# Должны быть спутники
-
-# 4. Перезагрузить
-sudo systemctl restart gpsd
-
-# 5. Холодный старт (если никогда не включалась)
-sudo gpsctl -x '*ARDX,C,U,0*2F'  # Clear ephemeris
-sudo systemctl restart gpsd
-```
-
-### Высокое смещение (>1 мкс)
-
-```bash
-# 1. Проверить sources
-chronyc sources -v
-
-# 2. Проверить что PPS выбран (*)
-
-# 3. Проверить GPS фикс
-cgps -s
-
-# 4. Выполнить makestep (через Repair Panel)
-
-# 5. Подождать 15-20 минут на холодный старт
-
-# 6. Проверить качество PPS
-sudo ppstest /dev/pps0
-```
-
-### Frontend не загружается
-
-```bash
-# 1. Проверить консоль браузера (F12)
-
-# 2. Очистить кеш (Ctrl+Shift+Delete)
-
-# 3. Проверить CORS
-curl -i http://192.168.1.10/monitor/api.php | grep -i "Access-Control"
-
-# 4. Проверить Content-Type
-curl -i http://192.168.1.10/monitor/api.php | grep -i "Content-Type"
-
-# 5. Запустить локальный сервер
-cd /var/www/html/monitor/
-python3 -m http.server 8000
-# http://localhost:8000/
 ```
 
 ---
@@ -967,14 +1148,22 @@ monitor/
 ├── api.php            # REST API для сбора метрик (~8 KB)
 ├── action.php         # API для выполнения команд (~2.5 KB)
 ├── index.html         # Веб-интерфейс (CSS + JS встроены) (~22 KB)
+├── config.json        # Конфигурация системы (~1.5 KB)
+├── style.css          # Стили (отдельный файл для организации) (~12 KB)
 └── README.md          # Эта документация
 ```
 
-**Размеры:**
+**Размеры (минимальные):**
 - `api.php` — ~8 KB
 - `action.php` — ~2.5 KB
-- `index.html` — ~22 KB (включая CSS и JS)
-- **Всего** — ~32.5 KB (минифицировано ~18 KB)
+- `index.html` — ~22 KB
+- `config.json` — ~1.5 KB
+- `style.css` — ~12 KB
+- **Всего** — ~46 KB
+
+**Минифицировано:**
+- ~28 KB (без style.css встроенного в HTML)
+- ~18 KB (если встроить style.css в index.html)
 
 ---
 
@@ -986,28 +1175,87 @@ monitor/
 |--------|-----------|-----------|
 | CPU | < 5% | При обновлении каждые 15 сек |
 | Память | ~ 40 MB | PHP + Apache |
-| Диск | ~ 50 KB | Три файла + кеш браузера |
-| Пропускная способность | < 500 KB/ч | ~2 KB за запрос, каждые 15 сек |
+| Диск | ~ 50 KB | Четыре файла + кеш браузера |
+| Пропускная способность | < 500 KB/ч | ~2-3 KB за запрос, каждые 15 сек |
 
 ### Оптимизация
 
 **Снизить частоту обновления:**
-```javascript
-// В index.html
-setInterval(refresh, 30000);  // было 15000 (15 сек)
+```json
+{
+  "monitor": {
+    "refresh_interval": 30  // было 15 (15 сек)
+  }
+}
 ```
 
-**Отключить график:**
-```javascript
-// Закомментировать в render()
-// renderChart();
+**Отключить график (offset_history):**
+```php
+// В api.php закомментировать вызов
+// 'offset_history' => getOffsetHistory(),
 ```
 
 **Отключить skyplot:**
 ```javascript
-// Закомментировать в renderGps()
-// renderSkyview(sats);
+// В index.html в функции renderGps()
+// renderSkyview(sats);  // закомментировать
 ```
+
+---
+
+## Интеграция с внешними системами
+
+### Telegram уведомления (если используются)
+
+```json
+{
+  "telegram": {
+    "enabled": true,
+    "bot_token": "YOUR_TOKEN",
+    "chat_id": "YOUR_CHAT_ID",
+    "alerts": {
+      "gpsd_down": true,
+      "chrony_down": true,
+      "pps_lost": true,
+      "offset_threshold_ms": 10
+    }
+  }
+}
+```
+
+Требует PHP расширения `curl` для отправки HTTP запросов к Telegram API.
+
+### ser2net (если используется для удалённого доступа к UART)
+
+```json
+{
+  "ser2net": {
+    "port": 2947,
+    "baudrate": 9600
+  }
+}
+```
+
+Позволяет получать данные с UART через TCP соединение.
+
+---
+
+## История версий
+
+### v2.1 (текущая, 2026-05-10)
+
+**Добавлено:**
+- ✅ Новый файл `config.json` для централизованной конфигурации
+- ✅ Файл `style.css` для лучшей организации стилей
+- ✅ Поддержка светлой и тёмной темы с автоматическим переключением
+- ✅ Action `offset_history` для чтения истории смещений
+- ✅ Mode badge в header (NTP / U-Center)
+- ✅ Расширенная поддержка Telegram уведомлений в конфиге
+
+**Улучшено:**
+- ✅ Все стили перемещены в отдельный файл `style.css`
+- ✅ Поддержка CSS переменных для обеих тем
+- ✅ Лучшая организация конфигурации через JSON
 
 ---
 
@@ -1028,7 +1276,7 @@ setInterval(refresh, 30000);  // было 15000 (15 сек)
 
 ---
 
-**Версия:** 2.0 (обновлено 2026-05-10)  
+**Версия:** 2.1 (обновлено 2026-05-10)  
 **Автор:** @NoIDXMV6  
 **Репо:** [chrony-ublox-M10](https://github.com/NoIDXMV6/chrony-ublox-M10)  
-**Статус:** ✅ Актуально — все компоненты (api.php, action.php, index.html) документированы
+**Статус:** ✅ Актуально — все компоненты (api.php, action.php, index.html, config.json, style.css) документированы
