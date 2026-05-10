@@ -199,6 +199,24 @@ w32tm /query /status
                     │    └── /dev/pps0 ──►│         │
                     └─────────────────────┘         │
                                                      ▼
+
                                               LAN клиенты
                                           (или через MikroTik)
 ```
+
+## Мониторинг
+
+### Apache + PHP
+
+Нужно добавить www-data в sudoers:
+```bash
+sudo nano /etc/sudoers.d/chrony-web
+```
+Содержимое:
+```
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chronyc
+```
+```bash
+sudo chmod 440 /etc/sudoers.d/chrony-web
+```
+<img width="1796" height="1334" alt="Screenshot_1" src="https://github.com/user-attachments/assets/e2c0555d-45c3-45c6-aeb4-61fd42f0cc8a" />
