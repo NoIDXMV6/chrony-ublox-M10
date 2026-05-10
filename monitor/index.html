@@ -8,525 +8,154 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:        #0a0e14;
-  --bg2:       #0f141c;
-  --bg3:       #151c27;
-  --border:    #1e2a3a;
-  --border2:   #243347;
-  --text:      #c8d8e8;
-  --text2:     #7a9ab8;
-  --text3:     #4a6a88;
-  --accent:    #00d4ff;
-  --accent2:   #0099cc;
-  --green:     #39d98a;
-  --green2:    #1a7a4a;
-  --yellow:    #f5c842;
-  --yellow2:   #7a6010;
-  --red:       #ff4d6a;
-  --red2:      #7a1a28;
-  --purple:    #b57aff;
-  --mono:      'JetBrains Mono', monospace;
-  --sans:      'Space Grotesk', sans-serif;
-  --r:         6px;
+  --bg:#0a0e14; --bg2:#0f141c; --bg3:#151c27;
+  --border:#1e2a3a; --border2:#243347;
+  --text:#c8d8e8; --text2:#7a9ab8; --text3:#4a6a88;
+  --accent:#00d4ff; --accent2:#0099cc;
+  --green:#39d98a; --green2:#1a7a4a;
+  --yellow:#f5c842; --yellow2:#7a6010;
+  --red:#ff4d6a; --red2:#7a1a28;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Space Grotesk',sans-serif;
+  --r:6px;
 }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.015) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:1600px;margin:0 auto;padding:20px}
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* Clock */
+.clock-bar{text-align:center;padding:20px 0 22px;border-bottom:1px solid var(--border);margin-bottom:18px}
+.clock-time{font-family:var(--mono);font-size:3.2rem;font-weight:700;color:var(--accent);letter-spacing:2px;line-height:1}
+.clock-ms{font-family:var(--mono);font-size:1.8rem;font-weight:300;color:var(--accent2);opacity:.8}
+.clock-date{font-family:var(--mono);font-size:.82rem;color:var(--text3);margin-top:6px;letter-spacing:.1em}
 
-html { font-size: 16px; }
+/* Header */
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.header-left{display:flex;align-items:center;gap:12px}
+.logo{font-family:var(--mono);font-size:1.25rem;font-weight:700;color:var(--accent)}
+.logo span{color:var(--text3);font-weight:300}
+.hostname{font-family:var(--mono);font-size:.75rem;color:var(--text3);background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:3px 8px}
+.header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.update-info{font-family:var(--mono);font-size:.7rem;color:var(--text3)}
+.update-info span{color:var(--accent)}
+.services{display:flex;gap:7px;flex-wrap:wrap}
+.svc-pill{font-family:var(--mono);font-size:.65rem;padding:3px 9px;border-radius:20px;border:1px solid;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.svc-pill.on{border-color:var(--green2);color:var(--green);background:rgba(57,217,138,.06)}
+.svc-pill.off{border-color:var(--red2);color:var(--red);background:rgba(255,77,106,.06)}
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--sans);
-  min-height: 100vh;
-  overflow-x: hidden;
-}
+/* Buttons */
+.btn{font-family:var(--mono);font-size:.7rem;border-radius:4px;padding:5px 11px;cursor:pointer;border:1px solid;transition:background .15s,color .15s,opacity .15s}
+.btn-primary{color:var(--accent);border-color:var(--accent2);background:transparent}
+.btn-primary:hover{background:var(--accent2);color:#fff}
+.btn-warn{color:var(--yellow);border-color:var(--yellow2);background:transparent}
+.btn-warn:hover{background:var(--yellow2);color:#fff}
+.btn-green{color:var(--green);border-color:var(--green2);background:transparent}
+.btn-green:hover{background:var(--green2);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
 
-/* Grid noise texture */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(0,212,255,0.015) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,212,255,0.015) 1px, transparent 1px);
-  background-size: 40px 40px;
-  pointer-events: none;
-  z-index: 0;
-}
+/* Dots */
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px}
+.dot-good{background:var(--green);animation:pulse 2s infinite}
+.dot-warn{background:var(--yellow)}
+.dot-error{background:var(--red)}
+.dot-off{background:var(--text3)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
-/* ─── Layout ─────────────────────────────────────────────── */
+/* Cards */
+.cards-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.metric-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;position:relative;overflow:hidden}
+.metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent2);opacity:.4}
+.metric-card.good::before{background:var(--green);opacity:.7}
+.metric-card.warn::before{background:var(--yellow);opacity:.7}
+.metric-card.error::before{background:var(--red);opacity:.7}
+.metric-label{font-size:.63rem;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
+.metric-value{font-family:var(--mono);font-size:1.3rem;font-weight:700;color:var(--text);line-height:1}
+.metric-value .unit{font-size:.68rem;font-weight:400;color:var(--text3);margin-left:3px}
+.metric-sub{font-family:var(--mono);font-size:.63rem;color:var(--text3);margin-top:3px}
 
-.wrap {
-  position: relative;
-  z-index: 1;
-  max-width: 1800px;
-  margin: 0 auto;
-  padding: 24px 20px;
-}
+/* Block */
+.block{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.block-head{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:var(--bg3);border-bottom:1px solid var(--border);gap:8px}
+.block-title{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text2);display:flex;align-items:center;gap:6px}
+.block-badge{font-family:var(--mono);font-size:.6rem;padding:2px 6px;border-radius:3px;background:var(--bg);border:1px solid var(--border);color:var(--text3);white-space:nowrap}
+.block-badge.good{border-color:var(--green2);color:var(--green)}
+.block-badge.warn{border-color:var(--yellow2);color:var(--yellow)}
+.block-badge.error{border-color:var(--red2);color:var(--red)}
+.block-body{padding:12px 13px}
+.block-body.scroll{max-height:300px;overflow-y:auto}
+.block-body.scroll::-webkit-scrollbar{width:3px}
+.block-body.scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 
-/* ─── Header ─────────────────────────────────────────────── */
+/* Grids */
+.grid-top{display:grid;grid-template-columns:3fr 1.6fr 1.8fr;gap:13px;margin-bottom:13px}
+.grid-mid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:13px;margin-bottom:13px}
+.grid-repair{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+@media(max-width:1100px){.grid-top{grid-template-columns:1fr 1fr}.grid-mid{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.grid-top,.grid-mid,.grid-repair{grid-template-columns:1fr}.clock-time{font-size:2rem}.clock-ms{font-size:1.2rem}}
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 28px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
-  flex-wrap: wrap;
-  gap: 12px;
-}
+/* Tables */
+.sources-table,.clients-table,.ss-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.68rem}
+.sources-table th,.clients-table th,.ss-table th{color:var(--text3);font-weight:500;text-align:left;padding:3px 5px 7px;border-bottom:1px solid var(--border);white-space:nowrap}
+.sources-table td,.clients-table td,.ss-table td{padding:5px 5px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle}
+.sources-table tr:last-child td,.clients-table tr:last-child td,.ss-table tr:last-child td{border-bottom:none}
+.sources-table tr:hover td,.clients-table tr:hover td{background:rgba(255,255,255,.02)}
 
-.header-left { display: flex; align-items: center; gap: 16px; }
+.src-state{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:3px;font-weight:700;font-size:.75rem}
+.src-selected{background:rgba(57,217,138,.15);color:var(--green);border:1px solid var(--green2)}
+.src-combined{background:rgba(0,212,255,.1);color:var(--accent);border:1px solid var(--accent2)}
+.src-error{background:rgba(255,77,106,.1);color:var(--red);border:1px solid var(--red2)}
+.src-noselect{background:rgba(74,106,136,.1);color:var(--text3);border:1px solid var(--border)}
+.src-other{background:transparent;color:var(--text3);border:1px solid var(--border)}
 
-.logo {
-  font-family: var(--mono);
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: -0.5px;
-}
+.reach-bar{display:inline-flex;gap:1px;align-items:center}
+.reach-bit{width:4px;height:8px;border-radius:1px;background:var(--border2)}
+.reach-bit.on{background:var(--green)}
 
-.logo span { color: var(--text3); font-weight: 300; }
+/* KV */
+.kv-list{display:flex;flex-direction:column}
+.kv-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--border);gap:10px}
+.kv-row:last-child{border-bottom:none}
+.kv-key{font-size:.68rem;color:var(--text3);white-space:nowrap;flex-shrink:0}
+.kv-val{font-family:var(--mono);font-size:.7rem;color:var(--text);text-align:right;word-break:break-all}
+.kv-val.good{color:var(--green)}.kv-val.warn{color:var(--yellow)}.kv-val.error{color:var(--red)}.kv-val.accent{color:var(--accent)}
 
-.hostname {
-  font-family: var(--mono);
-  font-size: 0.8rem;
-  color: var(--text3);
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 3px 8px;
-}
+/* Progress */
+.progress-wrap{background:var(--bg3);border-radius:3px;height:3px;overflow:hidden;margin-top:4px}
+.progress-bar{height:100%;border-radius:3px;background:var(--accent);transition:width .5s}
+.progress-bar.warm{background:var(--yellow)}.progress-bar.hot{background:var(--red)}
 
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
+/* Msgs */
+.err-msg{font-family:var(--mono);font-size:.68rem;color:var(--red);padding:8px 0;text-align:center}
+.info-msg{font-family:var(--mono);font-size:.68rem;color:var(--text3);padding:8px 0;text-align:center}
 
-.update-info {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--text3);
-}
+/* Repair */
+.repair-btn-row{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.repair-output{font-family:var(--mono);font-size:.68rem;color:var(--green);background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:9px 11px;min-height:56px;max-height:200px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+.repair-output.error-out{color:var(--red)}
+.repair-output::-webkit-scrollbar{width:3px}
+.repair-output::-webkit-scrollbar-thumb{background:var(--border2)}
+.spinner{display:inline-block;width:9px;height:9px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;margin-right:5px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-.update-info span { color: var(--accent); }
+/* Chart */
+#offset-canvas{width:100%;height:200px;display:block}
+.chart-no-data{display:flex;align-items:center;justify-content:center;height:180px;flex-direction:column;gap:6px}
 
-.btn-refresh {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--accent);
-  background: transparent;
-  border: 1px solid var(--accent2);
-  border-radius: 4px;
-  padding: 5px 12px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.btn-refresh:hover { background: var(--accent2); color: #fff; }
+/* Skyview */
+#skyview-svg{display:block;max-width:100%}
+.sky-legend{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin-top:7px;font-family:var(--mono);font-size:.6rem;color:var(--text3)}
+.sky-legend-item{display:flex;align-items:center;gap:3px}
+.sky-legend-shape{width:11px;height:11px;flex-shrink:0}
 
-.status-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  margin-right: 5px;
-  animation: pulse 2s infinite;
-}
-@keyframes pulse {
-  0%,100% { opacity: 1; }
-  50%      { opacity: 0.4; }
-}
-.dot-good   { background: var(--green); }
-.dot-warn   { background: var(--yellow); animation: none; }
-.dot-error  { background: var(--red); animation: none; }
-.dot-off    { background: var(--text3); animation: none; }
-
-/* ─── Service pills ──────────────────────────────────────── */
-
-.services { display: flex; gap: 8px; flex-wrap: wrap; }
-
-.svc-pill {
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  padding: 3px 10px;
-  border-radius: 20px;
-  border: 1px solid;
-  display: flex; align-items: center; gap: 5px;
-  white-space: nowrap;
-}
-.svc-pill.on  { border-color: var(--green2); color: var(--green); background: rgba(57,217,138,0.06); }
-.svc-pill.off { border-color: var(--red2);   color: var(--red);   background: rgba(255,77,106,0.06); }
-
-/* ─── Stratum badge ──────────────────────────────────────── */
-
-.stratum-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--mono);
-  background: linear-gradient(135deg, rgba(0,212,255,0.1), rgba(0,153,204,0.05));
-  border: 1px solid rgba(0,212,255,0.25);
-  border-radius: 8px;
-  padding: 6px 14px;
-  font-size: 0.8rem;
-  color: var(--text2);
-}
-.stratum-badge .val { font-size: 1.4rem; font-weight: 700; color: var(--accent); line-height: 1; }
-.stratum-badge .ref { font-size: 0.7rem; color: var(--text3); }
-
-/* ─── Metric cards grid ──────────────────────────────────── */
-
-.cards-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.metric-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  padding: 14px 16px;
-  position: relative;
-  overflow: hidden;
-  transition: border-color 0.2s;
-}
-.metric-card:hover { border-color: var(--border2); }
-
-.metric-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: var(--accent2);
-  opacity: 0.4;
-}
-.metric-card.good::before  { background: var(--green); opacity: 0.6; }
-.metric-card.warn::before  { background: var(--yellow); opacity: 0.6; }
-.metric-card.error::before { background: var(--red); opacity: 0.6; }
-
-.metric-label {
-  font-size: 0.68rem;
-  font-weight: 500;
-  color: var(--text3);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 6px;
-}
-
-.metric-value {
-  font-family: var(--mono);
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text);
-  line-height: 1;
-}
-.metric-value .unit {
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: var(--text3);
-  margin-left: 3px;
-}
-
-.metric-sub {
-  font-family: var(--mono);
-  font-size: 0.68rem;
-  color: var(--text3);
-  margin-top: 4px;
-}
-
-/* ─── Section blocks ──────────────────────────────────────── */
-
-.grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-.grid-3 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-@media (max-width: 900px) {
-  .grid-2, .grid-3 { grid-template-columns: 1fr; }
-}
-
-.block {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  overflow: hidden;
-}
-
-.block-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 11px 16px;
-  background: var(--bg3);
-  border-bottom: 1px solid var(--border);
-  gap: 8px;
-}
-
-.block-title {
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text2);
-  display: flex; align-items: center; gap: 7px;
-}
-
-.block-badge {
-  font-family: var(--mono);
-  font-size: 0.65rem;
-  padding: 2px 7px;
-  border-radius: 3px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text3);
-}
-.block-badge.good  { border-color: var(--green2); color: var(--green); }
-.block-badge.warn  { border-color: var(--yellow2); color: var(--yellow); }
-.block-badge.error { border-color: var(--red2); color: var(--red); }
-
-.block-body { padding: 14px 16px; }
-
-/* ─── Sources table ───────────────────────────────────────── */
-
-.sources-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.72rem; }
-.sources-table th {
-  color: var(--text3);
-  font-weight: 500;
-  text-align: left;
-  padding: 4px 8px 8px;
-  border-bottom: 1px solid var(--border);
-  white-space: nowrap;
-}
-.sources-table td {
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--border);
-  color: var(--text2);
-  vertical-align: middle;
-}
-.sources-table tr:last-child td { border-bottom: none; }
-.sources-table tr:hover td { background: rgba(255,255,255,0.02); }
-
-.src-state {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px; height: 20px;
-  border-radius: 4px;
-  font-weight: 700;
-  font-size: 0.8rem;
-}
-.src-selected { background: rgba(57,217,138,0.15); color: var(--green); border: 1px solid var(--green2); }
-.src-combined { background: rgba(0,212,255,0.1);   color: var(--accent); border: 1px solid var(--accent2); }
-.src-error    { background: rgba(255,77,106,0.1);  color: var(--red);   border: 1px solid var(--red2); }
-.src-noselect { background: rgba(74,106,136,0.1);  color: var(--text3); border: 1px solid var(--border); }
-.src-other    { background: transparent;            color: var(--text3); border: 1px solid var(--border); }
-
-.reach-bar {
-  display: inline-flex;
-  gap: 2px;
-  align-items: center;
-}
-.reach-bit {
-  width: 5px; height: 10px;
-  border-radius: 1px;
-  background: var(--border2);
-}
-.reach-bit.on { background: var(--green); }
-
-/* ─── GPS section ────────────────────────────────────────── */
-
-.sat-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 8px;
-}
-
-.sat-dot {
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  background: var(--border2);
-  position: relative;
-}
-.sat-dot.used { background: var(--green); }
-.sat-dot.visible { background: var(--accent2); }
-.sat-dot:hover::after {
-  content: attr(title);
-  position: absolute;
-  bottom: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--bg3);
-  border: 1px solid var(--border2);
-  color: var(--text);
-  font-size: 0.65rem;
-  font-family: var(--mono);
-  white-space: nowrap;
-  padding: 3px 6px;
-  border-radius: 3px;
-  pointer-events: none;
-  z-index: 10;
-}
-
-.coord-row {
-  display: flex;
-  justify-content: space-between;
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  color: var(--text2);
-  padding: 3px 0;
-  border-bottom: 1px solid var(--border);
-}
-.coord-row:last-child { border-bottom: none; }
-.coord-label { color: var(--text3); }
-
-/* ─── Clients table ──────────────────────────────────────── */
-
-.clients-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.72rem; }
-.clients-table th { color: var(--text3); font-weight: 500; text-align: left; padding: 4px 8px 8px; border-bottom: 1px solid var(--border); }
-.clients-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); color: var(--text2); }
-.clients-table tr:last-child td { border-bottom: none; }
-.clients-table tr:hover td { background: rgba(255,255,255,0.02); }
-
-/* ─── KV list ────────────────────────────────────────────── */
-
-.kv-list { display: flex; flex-direction: column; gap: 0; }
-.kv-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--border);
-  gap: 12px;
-}
-.kv-row:last-child { border-bottom: none; }
-.kv-key {
-  font-size: 0.72rem;
-  color: var(--text3);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.kv-val {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--text);
-  text-align: right;
-  word-break: break-all;
-}
-.kv-val.good  { color: var(--green); }
-.kv-val.warn  { color: var(--yellow); }
-.kv-val.error { color: var(--red); }
-.kv-val.accent{ color: var(--accent); }
-
-/* ─── Progress bar ───────────────────────────────────────── */
-
-.progress-wrap { background: var(--bg3); border-radius: 3px; height: 4px; overflow: hidden; margin-top: 6px; }
-.progress-bar  { height: 100%; border-radius: 3px; background: var(--accent); transition: width 0.5s; }
-.progress-bar.warm { background: var(--yellow); }
-.progress-bar.hot  { background: var(--red); }
-
-/* ─── Skyview ────────────────────────────────────────────── */
-
-#skyview-svg { display: block; max-width: 100%; }
-
-.sky-legend {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-top: 10px;
-  font-family: var(--mono);
-  font-size: 0.65rem;
-  color: var(--text3);
-}
-.sky-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.sky-legend-shape {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-}
-
-@media (max-width: 900px) {
-  #top-grid { grid-template-columns: 1fr !important; }
-}
-
-/* ─── Offset indicator ───────────────────────────────────── */
-
-.offset-display {
-  text-align: center;
-  padding: 16px 0;
-}
-.offset-num {
-  font-family: var(--mono);
-  font-size: 2.4rem;
-  font-weight: 700;
-  line-height: 1;
-}
-.offset-unit {
-  font-family: var(--mono);
-  font-size: 0.85rem;
-  color: var(--text3);
-  margin-top: 4px;
-}
-.offset-good  { color: var(--green); }
-.offset-warn  { color: var(--yellow); }
-.offset-error { color: var(--red); }
-
-/* ─── Error state ────────────────────────────────────────── */
-
-.err-msg {
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  color: var(--red);
-  padding: 8px 0;
-  text-align: center;
-}
-
-/* ─── Loader ─────────────────────────────────────────────── */
-
-#loader {
-  position: fixed; inset: 0;
-  background: var(--bg);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  transition: opacity 0.4s;
-}
-.loader-logo {
-  font-family: var(--mono);
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: var(--accent);
-  margin-bottom: 24px;
-}
-.loader-bar-wrap { width: 200px; height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
-.loader-bar      { height: 100%; background: var(--accent); width: 0; animation: load 1.2s ease forwards; }
-@keyframes load { to { width: 100%; } }
-.loader-text { font-family: var(--mono); font-size: 0.7rem; color: var(--text3); margin-top: 12px; }
-
-/* ─── Scroll fix ─────────────────────────────────────────── */
-.block-body.scroll { max-height: 320px; overflow-y: auto; }
-.block-body.scroll::-webkit-scrollbar { width: 4px; }
-.block-body.scroll::-webkit-scrollbar-track { background: var(--bg2); }
-.block-body.scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+/* Loader */
+#loader{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;transition:opacity .4s}
+.loader-logo{font-family:var(--mono);font-size:1.8rem;font-weight:700;color:var(--accent);margin-bottom:24px}
+.loader-bar-wrap{width:200px;height:2px;background:var(--border);border-radius:1px;overflow:hidden}
+.loader-bar{height:100%;background:var(--accent);width:0;animation:load 1.2s ease forwards}
+@keyframes load{to{width:100%}}
+.loader-text{font-family:var(--mono);font-size:.7rem;color:var(--text3);margin-top:12px}
 </style>
 </head>
 <body>
@@ -534,60 +163,64 @@ body::before {
 <div id="loader">
   <div class="loader-logo">NTP//MON</div>
   <div class="loader-bar-wrap"><div class="loader-bar"></div></div>
-  <div class="loader-text">Загрузка данных...</div>
+  <div class="loader-text">Инициализация...</div>
 </div>
 
-<div class="wrap" id="app" style="opacity:0;transition:opacity 0.4s">
+<div class="wrap" id="app" style="opacity:0;transition:opacity .4s">
+
+  <!-- Clock -->
+  <div class="clock-bar">
+    <div><span class="clock-time" id="clock-time">00:00:00</span><span class="clock-ms" id="clock-ms">.000</span></div>
+    <div class="clock-date" id="clock-date">—</div>
+  </div>
 
   <!-- Header -->
   <div class="header">
     <div class="header-left">
       <div class="logo">NTP<span>//</span>MON</div>
       <div class="hostname" id="h-hostname">—</div>
+      <div class="services" id="h-services"></div>
     </div>
     <div class="header-right">
-      <div class="services" id="h-services"></div>
-      <div class="update-info">Обновлено: <span id="h-time">—</span></div>
-      <button class="btn-refresh" onclick="refresh()">↻ Обновить</button>
+      <div class="update-info">Данные: <span id="h-time">—</span></div>
+      <button class="btn btn-primary" onclick="refresh()">↻ Обновить</button>
     </div>
   </div>
 
-  <!-- Top metrics row -->
+  <!-- Cards -->
   <div class="cards-row" id="cards-row"></div>
 
-  <!-- Sources + GPS info + Skyview -->
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px" id="top-grid">
-    <div class="block" id="block-sources">
+  <!-- Top: Sources (wide) + GPS + Skyview -->
+  <div class="grid-top">
+    <div class="block">
       <div class="block-head">
-        <div class="block-title"><span class="status-dot dot-off" id="sd-sources"></span> Источники времени</div>
+        <div class="block-title"><span class="status-dot dot-off" id="sd-sources"></span>Источники времени</div>
         <span class="block-badge" id="bb-sources">—</span>
       </div>
       <div class="block-body scroll" id="body-sources"><div class="err-msg">Загрузка...</div></div>
     </div>
-    <div class="block" id="block-gps">
+    <div class="block">
       <div class="block-head">
-        <div class="block-title"><span class="status-dot dot-off" id="sd-gps"></span> GPS / GNSS</div>
+        <div class="block-title"><span class="status-dot dot-off" id="sd-gps"></span>GPS / GNSS</div>
         <span class="block-badge" id="bb-gps">—</span>
       </div>
       <div class="block-body" id="body-gps"><div class="err-msg">Загрузка...</div></div>
     </div>
-    <div class="block" id="block-skyview">
+    <div class="block">
       <div class="block-head">
         <div class="block-title">Карта неба</div>
         <span class="block-badge" id="bb-skyview">—</span>
       </div>
-      <div class="block-body" id="body-skyview" style="display:flex;flex-direction:column;align-items:center;padding:12px">
+      <div class="block-body" id="body-skyview" style="display:flex;flex-direction:column;align-items:center;padding:9px">
         <div class="err-msg">Загрузка...</div>
       </div>
     </div>
   </div>
 
-  <!-- Tracking + Clients + Server -->
-  <div class="grid-3" style="margin-bottom:16px">
+  <!-- Mid: Sync + Clients + System -->
+  <div class="grid-mid">
     <div class="block">
-      <div class="block-head">
-        <div class="block-title">Синхронизация</div>
-      </div>
+      <div class="block-head"><div class="block-title">Синхронизация</div></div>
       <div class="block-body" id="body-tracking"><div class="err-msg">Загрузка...</div></div>
     </div>
     <div class="block">
@@ -598,557 +231,385 @@ body::before {
       <div class="block-body scroll" id="body-clients"><div class="err-msg">Загрузка...</div></div>
     </div>
     <div class="block">
-      <div class="block-head">
-        <div class="block-title">Система</div>
-      </div>
+      <div class="block-head"><div class="block-title">Система</div></div>
       <div class="block-body" id="body-system"><div class="err-msg">Загрузка...</div></div>
     </div>
   </div>
 
-  <!-- Sourcestats -->
-  <div class="block" style="margin-bottom:16px">
+  <!-- Offset chart -->
+  <div class="block" style="margin-bottom:13px">
     <div class="block-head">
-      <div class="block-title">Статистика источников (sourcestats)</div>
+      <div class="block-title">График смещения времени — System Offset</div>
+      <span class="block-badge" id="bb-chart">—</span>
     </div>
+    <div class="block-body" id="body-chart">
+      <canvas id="offset-canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Sourcestats -->
+  <div class="block" style="margin-bottom:13px">
+    <div class="block-head"><div class="block-title">Статистика источников (sourcestats)</div></div>
     <div class="block-body scroll" id="body-sourcestats"><div class="err-msg">Загрузка...</div></div>
   </div>
 
-</div><!-- /.wrap -->
+  <!-- Repair panel -->
+  <div class="block" style="margin-bottom:13px">
+    <div class="block-head">
+      <div class="block-title">⚙ Панель управления и диагностики</div>
+    </div>
+    <div class="block-body">
+      <div class="grid-repair">
+        <div>
+          <div style="font-size:.63rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-weight:600">Управление сервисами</div>
+          <div class="repair-btn-row">
+            <button class="btn btn-warn"    onclick="doAction('makestep','repair-output')">⏱ Принудительная синхронизация</button>
+            <button class="btn btn-primary" onclick="doAction('restart_gpsd','repair-output')">↺ Перезапуск gpsd</button>
+            <button class="btn btn-primary" onclick="doAction('restart_chrony','repair-output')">↺ Перезапуск chrony</button>
+          </div>
+          <div id="repair-output" class="repair-output">Готов к работе...</div>
+        </div>
+        <div>
+          <div style="font-size:.63rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-weight:600">Диагностика UART /dev/ttyAMA0</div>
+          <div class="repair-btn-row">
+            <button class="btn btn-green"   onclick="doAction('raw_port','port-output')">📡 Сырые данные NMEA</button>
+            <button class="btn btn-primary" onclick="doAction('port_info','port-output')">ℹ Параметры порта</button>
+          </div>
+          <div id="port-output" class="repair-output">Готов к работе...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
 
 <script>
-const API = 'api.php';
-let refreshTimer = null;
+const API='api.php', ACTION='action.php';
+let refreshTimer=null, offsets=[];
 
-// ─── Helpers ───────────────────────────────────────────────
+const $=id=>document.getElementById(id);
+const h=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const sc=s=>({good:'good',warning:'warn',error:'error'}[s]??'');
 
-const $ = id => document.getElementById(id);
+// ── Clock ──────────────────────────────────────────────────
+function tickClock() {
+  const n=new Date();
+  const pad=v=>String(v).padStart(2,'0'), pad3=v=>String(v).padStart(3,'0');
+  $('clock-time').textContent=`${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+  $('clock-ms').textContent=`.${pad3(n.getMilliseconds())}`;
+  const days=['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+  const mons=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const tz=n.getTimezoneOffset();
+  $('clock-date').textContent=`${days[n.getDay()]}, ${n.getDate()} ${mons[n.getMonth()]} ${n.getFullYear()} · UTC${tz<=0?'+':''}${-tz/60}`;
+}
+setInterval(tickClock,10); tickClock();
 
-function h(s) {
-  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+// ── Helpers ────────────────────────────────────────────────
+function reachBar(oct) {
+  const dec=parseInt(oct,8)||0, bits=[];
+  for(let i=7;i>=0;i--) bits.push((dec>>i)&1);
+  return '<div class="reach-bar">'+bits.map(b=>`<div class="reach-bit ${b?'on':''}"></div>`).join('')+'</div>';
 }
 
-function statusClass(s) {
-  return {good:'good', warning:'warn', error:'error'}[s] ?? '';
+function srcStateEl(mode,state,nosel) {
+  let cls,lbl;
+  if(state==='*'){cls='src-selected';lbl='*';}
+  else if(state==='+'){cls='src-combined';lbl='+';}
+  else if(['x','?'].includes(state)){cls=nosel?'src-noselect':'src-error';lbl=state;}
+  else{cls='src-other';lbl=state;}
+  return `<span class="src-state ${cls}">${lbl}</span>`;
 }
 
-function dotClass(ok) {
-  return ok ? 'dot-good' : 'dot-error';
+// ── Header ─────────────────────────────────────────────────
+function renderHeader(d) {
+  const sys=d.system||{};
+  $('h-hostname').textContent=sys.hostname||'—';
+  $('h-time').textContent=new Date().toLocaleTimeString('ru-RU');
+  $('h-services').innerHTML=[
+    {l:'chrony',on:sys.chrony_active},
+    {l:'gpsd',  on:sys.gpsd_active},
+    {l:'PPS',   on:sys.pps_device},
+  ].map(s=>`<div class="svc-pill ${s.on?'on':'off'}"><span style="width:6px;height:6px;border-radius:50%;background:${s.on?'var(--green)':'var(--red)'};display:inline-block"></span>${s.l}</div>`).join('');
 }
 
-// Convert octal reach string to 8-bit array
-function reachBits(octalStr) {
-  const dec = parseInt(octalStr, 8) || 0;
-  const bits = [];
-  for (let i = 7; i >= 0; i--) bits.push((dec >> i) & 1);
-  return bits;
-}
-
-function reachBar(octalStr) {
-  const bits = reachBits(octalStr);
-  return '<div class="reach-bar">' +
-    bits.map(b => `<div class="reach-bit ${b?'on':''}"></div>`).join('') +
-  '</div>';
-}
-
-function srcStateEl(mode, state, isNoselect) {
-  let cls, label;
-  if (state === '*') { cls = 'src-selected'; label = '*'; }
-  else if (state === '+') { cls = 'src-combined'; label = '+'; }
-  else if (state === 'x' || state === '?') {
-    cls = isNoselect ? 'src-noselect' : 'src-error';
-    label = state;
-  }
-  else { cls = 'src-other'; label = state; }
-  return `<span class="src-state ${cls}">${label}</span>`;
-}
-
-// ─── Render functions ──────────────────────────────────────
-
+// ── Cards ──────────────────────────────────────────────────
 function renderCards(d) {
-  const tr = d.tracking || {};
-  const act = d.activity || {};
-  const gps = d.gpsd || {};
-  const sky = gps.sky || {};
-
-  function fmtOffset(key) {
-    const f = tr[key + '_fmt'];
-    if (!f) return {v:'—', u:''};
-    return {v: f.value, u: f.unit};
-  }
-
-  const sysOff = fmtOffset('system_time');
-  const rmsOff = fmtOffset('rms_offset');
-
-  const sysVal = Math.abs(parseFloat(tr.system_time || 0));
-  const sysCls = sysVal > 0.5 ? 'error' : sysVal > 0.1 ? 'warn' : 'good';
-
-  const cards = [
-    { label: 'Stratum', value: tr.stratum ?? '—', unit: '', sub: tr.reference_id ?? '', cls: tr.stratum == 1 ? 'good' : '' },
-    { label: 'Смещение системы', value: sysOff.v, unit: sysOff.u, sub: 'от NTP времени', cls: sysCls },
-    { label: 'RMS смещение',     value: rmsOff.v, unit: rmsOff.u, sub: 'скользящее среднее', cls: '' },
-    { label: 'Частота',          value: parseFloat(tr.frequency||0).toFixed(3), unit: 'ppm', sub: 'дрейф генератора', cls: '' },
-    { label: 'Спутники',         value: (sky.used ?? '—') + (sky.total ? '/' + sky.total : ''), unit: '', sub: 'использ./видимых', cls: sky.used > 4 ? 'good' : sky.used > 0 ? 'warn' : '' },
-    { label: 'Leap статус',      value: tr.leap_status ?? '—', unit: '', sub: '', cls: tr.leap_status === 'Normal' ? 'good' : 'warn' },
-    { label: 'Онлайн источников',value: act.online ?? '—', unit: '', sub: `оффлайн: ${act.offline ?? '—'}`, cls: (act.online > 0) ? 'good' : 'error' },
+  const tr=d.tracking||{}, act=d.activity||{}, sky=(d.gpsd||{}).sky||{}, gps=d.gpsd||{};
+  const fmt=k=>{const f=tr[k+'_fmt'];return f?{v:f.value,u:f.unit}:{v:'—',u:''};};
+  const so=fmt('system_time'), ro=fmt('rms_offset');
+  const sv=Math.abs(parseFloat(tr.system_time||0));
+  const scls=sv>0.5?'error':sv>0.1?'warn':'good';
+  const cards=[
+    {l:'Stratum',       v:tr.stratum??'—',    u:'',      s:tr.reference_id??'',  c:tr.stratum==1?'good':''},
+    {l:'Смещение',      v:so.v,               u:so.u,    s:'от NTP времени',      c:scls},
+    {l:'RMS offset',    v:ro.v,               u:ro.u,    s:'скользящее среднее',  c:''},
+    {l:'Частота',       v:parseFloat(tr.frequency||0).toFixed(3),u:'ppm',s:'дрейф генератора',c:''},
+    {l:'Спутников',     v:sky.used!=null?`${sky.used}/${sky.total}`:'—',u:'',s:'исп./видимых',c:sky.used>4?'good':sky.used>0?'warn':''},
+    {l:'Онлайн',        v:act.online??'—',    u:'',      s:`оффлайн: ${act.offline??'—'}`,c:(act.online>0)?'good':'error'},
+    {l:'UART baudrate', v:gps.uart_baud??'—', u:'bps',   s:'/dev/ttyAMA0',        c:gps.uart_baud?'good':''},
+    {l:'Leap статус',   v:tr.leap_status??'—',u:'',      s:'',                    c:tr.leap_status==='Normal'?'good':'warn'},
   ];
-
-  $('cards-row').innerHTML = cards.map(c => `
-    <div class="metric-card ${c.cls}">
-      <div class="metric-label">${h(c.label)}</div>
-      <div class="metric-value">${h(c.value)}<span class="unit">${h(c.unit)}</span></div>
-      ${c.sub ? `<div class="metric-sub">${h(c.sub)}</div>` : ''}
-    </div>
-  `).join('');
+  $('cards-row').innerHTML=cards.map(c=>`<div class="metric-card ${c.c}"><div class="metric-label">${h(c.l)}</div><div class="metric-value">${h(c.v)}<span class="unit">${h(c.u)}</span></div>${c.s?`<div class="metric-sub">${h(c.s)}</div>`:''}</div>`).join('');
 }
 
+// ── Sources ────────────────────────────────────────────────
 function renderSources(d) {
-  const src = d.sources || {};
-  const list = src.list || [];
-  const sc = statusClass(src.status);
-
-  const dot = $('sd-sources');
-  dot.className = 'status-dot ' + (sc === 'good' ? 'dot-good' : sc === 'warn' ? 'dot-warn' : 'dot-error');
-
-  const bb = $('bb-sources');
-  bb.textContent = src.status === 'good' ? 'OK' : src.status === 'warning' ? 'WARN' : 'ERR';
-  bb.className = 'block-badge ' + sc;
-
-  if (!list.length) { $('body-sources').innerHTML = '<div class="err-msg">Нет источников</div>'; return; }
-
-  $('body-sources').innerHTML = `
-    <table class="sources-table">
-      <thead><tr>
-        <th></th><th>Источник</th><th>Str</th><th>Poll</th><th>Reach</th><th>LastRx</th><th>Смещение</th>
-      </tr></thead>
-      <tbody>
-        ${list.map(s => `
-          <tr>
-            <td>${srcStateEl(s.mode, s.state, s.is_noselect)}</td>
-            <td style="color:var(--text);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(s.name)}">${h(s.name)}</td>
-            <td>${s.stratum || '—'}</td>
-            <td>${s.poll}</td>
-            <td>${reachBar(s.reach)}</td>
-            <td>${h(s.last_rx)}</td>
-            <td style="color:${s.state==='*'?'var(--green)':'var(--text2)'}">${h(s.offset)}</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  `;
+  const src=d.sources||{}, list=src.list||[], cls=sc(src.status);
+  const dot=$('sd-sources');
+  dot.className='status-dot '+(cls==='good'?'dot-good':cls==='warn'?'dot-warn':'dot-error');
+  const bb=$('bb-sources');
+  bb.textContent=src.status==='good'?'OK':src.status==='warning'?'WARN':'ERR';
+  bb.className='block-badge '+cls;
+  if(!list.length){$('body-sources').innerHTML='<div class="err-msg">Нет источников</div>';return;}
+  $('body-sources').innerHTML=`<table class="sources-table"><thead><tr><th></th><th>Источник</th><th>Str</th><th>Poll</th><th>Reach</th><th>LastRx</th><th>Смещение</th></tr></thead><tbody>${
+    list.map(s=>`<tr><td>${srcStateEl(s.mode,s.state,s.is_noselect)}</td><td style="color:var(--text);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(s.name)}">${h(s.name)}</td><td>${s.stratum||'—'}</td><td>${s.poll}</td><td>${reachBar(s.reach)}</td><td>${h(s.last_rx)}</td><td style="color:${s.state==='*'?'var(--green)':'var(--text2)'};white-space:nowrap">${h(s.offset)}</td></tr>`).join('')
+  }</tbody></table>`;
 }
 
+// ── GPS ────────────────────────────────────────────────────
 function renderGps(d) {
-  const gps = d.gpsd || {};
-  const bb  = $('bb-gps');
-  const dot = $('sd-gps');
-
-  if (!gps.available) {
-    dot.className = 'status-dot dot-off';
-    bb.textContent = 'N/A';
-    bb.className = 'block-badge';
-    $('body-gps').innerHTML = '<div class="err-msg">gpsd недоступен</div>';
-    renderSkyview([]);
-    return;
+  const gps=d.gpsd||{}, bb=$('bb-gps'), dot=$('sd-gps');
+  if(!gps.available){
+    dot.className='status-dot dot-off';bb.textContent='N/A';bb.className='block-badge';
+    $('body-gps').innerHTML='<div class="err-msg">gpsd недоступен</div>';
+    renderSkyview([]);return;
   }
-
-  const fix = gps.fix || {};
-  const sky = gps.sky || {};
-  const mode = fix.mode || 0;
-
-  dot.className = 'status-dot ' + (mode === 3 ? 'dot-good' : mode === 2 ? 'dot-warn' : 'dot-error');
-  bb.textContent = fix.mode_label || '—';
-  bb.className = 'block-badge ' + (mode === 3 ? 'good' : mode === 2 ? 'warn' : 'error');
-
-  const sats = sky.satellites || [];
-  const usedCount = sats.filter(s => s.used).length;
-
-  $('body-gps').innerHTML = `
-    <div class="kv-list">
-      <div class="kv-row"><span class="kv-key">Фикс</span><span class="kv-val ${mode===3?'good':mode===2?'warn':'error'}">${h(fix.mode_label)}</span></div>
-      ${fix.lat != null ? `<div class="kv-row"><span class="kv-key">Широта</span><span class="kv-val accent">${fix.lat}°</span></div>` : ''}
-      ${fix.lon != null ? `<div class="kv-row"><span class="kv-key">Долгота</span><span class="kv-val accent">${fix.lon}°</span></div>` : ''}
-      ${fix.alt != null ? `<div class="kv-row"><span class="kv-key">Высота</span><span class="kv-val">${fix.alt} м</span></div>` : ''}
-      <div class="kv-row"><span class="kv-key">PPS</span><span class="kv-val ${gps.pps?'good':'error'}">${gps.pps?'/dev/pps0 ✓':'Отсутствует'}</span></div>
-      ${sky.hdop != null ? `<div class="kv-row"><span class="kv-key">HDOP</span><span class="kv-val">${sky.hdop}</span></div>` : ''}
-      ${sky.vdop != null ? `<div class="kv-row"><span class="kv-key">VDOP</span><span class="kv-val">${sky.vdop}</span></div>` : ''}
-      ${sky.pdop != null ? `<div class="kv-row"><span class="kv-key">PDOP</span><span class="kv-val">${sky.pdop}</span></div>` : ''}
-      <div class="kv-row"><span class="kv-key">Спутников</span><span class="kv-val">${usedCount} / ${sats.length}</span></div>
-    </div>
-  `;
-
+  const fix=gps.fix||{}, sky=gps.sky||{}, mode=fix.mode||0;
+  dot.className='status-dot '+(mode===3?'dot-good':mode===2?'dot-warn':'dot-error');
+  bb.textContent=fix.mode_label||'—';
+  bb.className='block-badge '+(mode===3?'good':mode===2?'warn':'error');
+  const sats=sky.satellites||[], used=sats.filter(s=>s.used).length;
+  $('body-gps').innerHTML=`<div class="kv-list">
+    <div class="kv-row"><span class="kv-key">Фикс</span><span class="kv-val ${mode===3?'good':mode===2?'warn':'error'}">${h(fix.mode_label)}</span></div>
+    ${fix.lat!=null?`<div class="kv-row"><span class="kv-key">Широта</span><span class="kv-val accent">${fix.lat}°</span></div>`:''}
+    ${fix.lon!=null?`<div class="kv-row"><span class="kv-key">Долгота</span><span class="kv-val accent">${fix.lon}°</span></div>`:''}
+    ${fix.alt!=null?`<div class="kv-row"><span class="kv-key">Высота</span><span class="kv-val">${fix.alt} м</span></div>`:''}
+    <div class="kv-row"><span class="kv-key">UART</span><span class="kv-val ${gps.uart_baud?'good':''}">${gps.uart_baud??'—'} bps</span></div>
+    <div class="kv-row"><span class="kv-key">PPS</span><span class="kv-val ${gps.pps?'good':'error'}">${gps.pps?'/dev/pps0 ✓':'Отсутствует'}</span></div>
+    ${sky.hdop!=null?`<div class="kv-row"><span class="kv-key">HDOP</span><span class="kv-val">${sky.hdop}</span></div>`:''}
+    ${sky.pdop!=null?`<div class="kv-row"><span class="kv-key">PDOP</span><span class="kv-val">${sky.pdop}</span></div>`:''}
+    <div class="kv-row"><span class="kv-key">Спутников</span><span class="kv-val">${used} / ${sats.length}</span></div>
+  </div>`;
   renderSkyview(sats);
 }
 
-// ─── Skyview SVG ───────────────────────────────────────────
-
+// ── Skyview ────────────────────────────────────────────────
 function renderSkyview(sats) {
-  const bb = $('bb-skyview');
-
-  const SZ   = 280;   // размер SVG
-  const CX   = SZ / 2;
-  const CY   = SZ / 2;
-  const R    = SZ * 0.5 * 0.92; // радиус горизонта
-
-  // Цвета в стилистике проекта
-  const COL = {
-    bg:       '#0f141c',
-    ring:     '#1e2a3a',
-    grid:     '#1e2a3a',
-    gridText: '#4a6a88',
-    compass:  '#7a9ab8',
-    snrHigh:  '#39d98a',  // ≥40 dBHz — зелёный
-    snrMid:   '#f5c842',  // 30-39   — жёлтый
-    snrLow:   '#ff4d6a',  // <30     — красный
-    unused:   '#243347',  // не используется (контур)
-    label:    '#c8d8e8',
+  const bb=$('bb-skyview'), SZ=250, CX=SZ/2, CY=SZ/2, R=SZ*.5*.88;
+  const C={ring:'#1e2a3a',gt:'#4a6a88',cp:'#7a9ab8',hi:'#39d98a',mi:'#f5c842',lo:'#ff4d6a',un:'#243347'};
+  const azel2xy=(az,el)=>{const r=R*(1-el/90),a=(az-90)*Math.PI/180;return[CX+r*Math.cos(a),CY+r*Math.sin(a)];};
+  const snrCol=snr=>snr>=40?C.hi:snr>=30?C.mi:C.lo;
+  const shape=s=>{const g=s.gnss,p=s.prn;if(g===6)return 'sq';if(g===3)return 'td';if(g===2)return 'tu';if(g===1)return 'di';if(p>=65&&p<=96)return 'sq';if(p>=300)return 'td';return 'ci';};
+  const satEl=s=>{
+    if(s.el==null||s.az==null)return '';
+    const[x,y]=azel2xy(s.az,s.el),snr=s.ss||0,used=s.used,S=5.5;
+    const fill=used?snrCol(snr):'none',stroke=used?snrCol(snr):C.un,sw=used?0:1.5;
+    const sh=shape(s);
+    let el='';
+    if(sh==='ci') el=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${S}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+    else if(sh==='sq') el=`<rect x="${(x-S).toFixed(1)}" y="${(y-S).toFixed(1)}" width="${(S*2).toFixed(0)}" height="${(S*2).toFixed(0)}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+    else if(sh==='tu'){const p=`${x.toFixed(1)},${(y-S).toFixed(1)} ${(x-S).toFixed(1)},${(y+S).toFixed(1)} ${(x+S).toFixed(1)},${(y+S).toFixed(1)}`;el=`<polygon points="${p}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;}
+    else if(sh==='td'){const p=`${x.toFixed(1)},${(y+S).toFixed(1)} ${(x-S).toFixed(1)},${(y-S).toFixed(1)} ${(x+S).toFixed(1)},${(y-S).toFixed(1)}`;el=`<polygon points="${p}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;}
+    else if(sh==='di'){const p=`${x.toFixed(1)},${(y-S).toFixed(1)} ${(x+S).toFixed(1)},${y.toFixed(1)} ${x.toFixed(1)},${(y+S).toFixed(1)} ${(x-S).toFixed(1)},${y.toFixed(1)}`;el=`<polygon points="${p}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;}
+    const lbl=`<text x="${(x+S+2).toFixed(1)}" y="${(y+3).toFixed(1)}" font-family="JetBrains Mono,monospace" font-size="6.5" fill="${C.gt}">${s.prn}</text>`;
+    return `<g><title>PRN:${s.prn} El:${s.el}° Az:${s.az}° SNR:${snr}dBHz${used?' ✓':''}</title>${el}${lbl}</g>`;
   };
-
-  // Перевод азимут+элевация → XY на SVG
-  function azel2xy(az, el) {
-    // az: 0=N, 90=E, 180=S, 270=W
-    // el: 0=горизонт, 90=зенит
-    const r = R * (1 - el / 90);
-    const angle = (az - 90) * Math.PI / 180; // 0° = вправо в тригонометрии
-    const x = CX + r * Math.cos(angle);
-    const y = CY + r * Math.sin(angle);
-    return [x, y];
-  }
-
-  // Цвет по SNR
-  function snrColor(snr, used) {
-    if (!used) return null; // контур без заливки
-    if (snr >= 40) return COL.snrHigh;
-    if (snr >= 30) return COL.snrMid;
-    return COL.snrLow;
-  }
-
-  // Форма по типу GNSS (gnssid или PRN-диапазон)
-  // gnssid: 0=GPS, 1=SBAS, 2=Galileo, 3=BeiDou, 5=QZSS, 6=GLONASS
-  function satShape(sat) {
-    const gid = sat.gnss;
-    const prn = sat.prn;
-    if (gid === 6) return 'square';    // GLONASS
-    if (gid === 3) return 'tri-down';  // BeiDou
-    if (gid === 2) return 'tri-up';    // Galileo
-    if (gid === 1) return 'diamond';   // SBAS/WAAS
-    if (gid === 5) return 'circle';    // QZSS
-    // Fallback по PRN диапазону
-    if (prn >= 65 && prn <= 96)  return 'square';   // GLONASS
-    if (prn >= 300 && prn <= 400) return 'tri-down'; // BeiDou
-    if (prn >= 400)               return 'tri-down'; // BeiDou alt
-    return 'circle'; // GPS по умолчанию
-  }
-
-  // Построить SVG-фигуру спутника
-  function satSVG(sat) {
-    if (sat.el == null || sat.az == null) return '';
-    const [x, y] = azel2xy(sat.az, sat.el);
-    const snr    = sat.ss || 0;
-    const used   = sat.used;
-    const shape  = satShape(sat);
-    const fill   = used ? (snrColor(snr, true) || COL.snrLow) : 'none';
-    const stroke = used ? fill : COL.unused;
-    const sw     = used ? 0 : 1.5;
-    const S      = 7; // half-size
-    const label  = sat.prn;
-
-    let shapeEl = '';
-    if (shape === 'circle') {
-      shapeEl = `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${S}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    } else if (shape === 'square') {
-      shapeEl = `<rect x="${(x-S).toFixed(1)}" y="${(y-S).toFixed(1)}" width="${S*2}" height="${S*2}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    } else if (shape === 'tri-up') {
-      const pts = `${x.toFixed(1)},${(y-S).toFixed(1)} ${(x-S).toFixed(1)},${(y+S).toFixed(1)} ${(x+S).toFixed(1)},${(y+S).toFixed(1)}`;
-      shapeEl = `<polygon points="${pts}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    } else if (shape === 'tri-down') {
-      const pts = `${x.toFixed(1)},${(y+S).toFixed(1)} ${(x-S).toFixed(1)},${(y-S).toFixed(1)} ${(x+S).toFixed(1)},${(y-S).toFixed(1)}`;
-      shapeEl = `<polygon points="${pts}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    } else if (shape === 'diamond') {
-      const pts = `${x.toFixed(1)},${(y-S).toFixed(1)} ${(x+S).toFixed(1)},${y.toFixed(1)} ${x.toFixed(1)},${(y+S).toFixed(1)} ${(x-S).toFixed(1)},${y.toFixed(1)}`;
-      shapeEl = `<polygon points="${pts}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    }
-
-    // Подпись PRN
-    const labelEl = `<text x="${(x+S+2).toFixed(1)}" y="${(y+4).toFixed(1)}" font-family="JetBrains Mono,monospace" font-size="8" fill="${COL.gridText}">${label}</text>`;
-
-    const title = `PRN:${sat.prn} El:${sat.el}° Az:${sat.az}° SNR:${snr}dBHz ${used?'[используется]':''}`;
-    return `<g><title>${title}</title>${shapeEl}${labelEl}</g>`;
-  }
-
-  // Концентрические кольца (элевация)
-  function rings() {
-    let out = '';
-    for (let el = 0; el <= 75; el += 15) {
-      const r = R * (1 - el / 90);
-      out += `<circle cx="${CX}" cy="${CY}" r="${r.toFixed(1)}" fill="none" stroke="${COL.ring}" stroke-width="0.5" stroke-dasharray="${el===0?'none':'3,4'}"/>`;
-      if (el > 0) {
-        out += `<text x="${(CX+4).toFixed(1)}" y="${(CY-r+10).toFixed(1)}" font-family="JetBrains Mono,monospace" font-size="8" fill="${COL.gridText}">${el}°</text>`;
-      }
-    }
-    return out;
-  }
-
-  // Радиальные линии (азимут каждые 30°)
-  function radials() {
-    let out = '';
-    for (let az = 0; az < 180; az += 30) {
-      const [x0,y0] = azel2xy(az, 0);
-      const [x1,y1] = azel2xy(az+180, 0);
-      out += `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="${COL.grid}" stroke-width="0.5"/>`;
-    }
-    return out;
-  }
-
-  // Compass labels
-  function compass() {
-    const dirs = [{l:'N',az:0},{l:'E',az:90},{l:'S',az:180},{l:'W',az:270}];
-    return dirs.map(d => {
-      const [x,y] = azel2xy(d.az, 0);
-      const ox = d.az===90?10:d.az===270?-10:0;
-      const oy = d.az===180?12:d.az===0?-4:4;
-      return `<text x="${(x+ox).toFixed(1)}" y="${(y+oy).toFixed(1)}" font-family="JetBrains Mono,monospace" font-size="10" font-weight="700" fill="${COL.compass}" text-anchor="middle">${d.l}</text>`;
-    }).join('');
-  }
-
-  if (!sats.length) {
-    $('body-skyview').innerHTML = '<div class="err-msg">Нет данных о спутниках</div>';
-    bb.textContent = '0 спутников';
-    bb.className = 'block-badge';
-    return;
-  }
-
-  const usedCount = sats.filter(s => s.used).length;
-  bb.textContent = `${usedCount}/${sats.length} спутников`;
-  bb.className = 'block-badge ' + (usedCount > 4 ? 'good' : usedCount > 0 ? 'warn' : 'error');
-
-  const satsSVG = sats.map(satSVG).join('');
-
-  const svg = `
-    <svg id="skyview-svg" viewBox="0 0 ${SZ} ${SZ}" width="${SZ}" height="${SZ}" xmlns="http://www.w3.org/2000/svg">
-      <!-- Background -->
-      <circle cx="${CX}" cy="${CY}" r="${R}" fill="${COL.bg}" stroke="${COL.ring}" stroke-width="1"/>
-      <!-- Grid rings -->
-      ${rings()}
-      <!-- Radial lines -->
-      ${radials()}
-      <!-- Compass -->
-      ${compass()}
-      <!-- Satellites -->
-      ${satsSVG}
-    </svg>
-  `;
-
-  // Легенда
-  const legend = `
-    <div class="sky-legend">
-      <div class="sky-legend-item">
-        <svg class="sky-legend-shape" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="#39d98a"/></svg>
-        GPS/QZSS ≥40
-      </div>
-      <div class="sky-legend-item">
-        <svg class="sky-legend-shape" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="#f5c842"/></svg>
-        30–39 dBHz
-      </div>
-      <div class="sky-legend-item">
-        <svg class="sky-legend-shape" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="#ff4d6a"/></svg>
-        &lt;30 dBHz
-      </div>
-      <div class="sky-legend-item">
-        <svg class="sky-legend-shape" viewBox="0 0 14 14"><rect x="2" y="2" width="10" height="10" fill="none" stroke="#243347" stroke-width="1.5"/></svg>
-        GLONASS
-      </div>
-      <div class="sky-legend-item">
-        <svg class="sky-legend-shape" viewBox="0 0 14 14"><polygon points="7,1 13,13 1,13" fill="none" stroke="#243347" stroke-width="1.5"/></svg>
-        Galileo ▲
-      </div>
-      <div class="sky-legend-item">
-        <svg class="sky-legend-shape" viewBox="0 0 14 14"><polygon points="7,13 13,1 1,1" fill="none" stroke="#243347" stroke-width="1.5"/></svg>
-        BeiDou ▼
-      </div>
-      <div class="sky-legend-item">
-        <svg class="sky-legend-shape" viewBox="0 0 14 14"><polygon points="7,1 13,7 7,13 1,7" fill="none" stroke="#243347" stroke-width="1.5"/></svg>
-        SBAS ◇
-      </div>
-      <div class="sky-legend-item">
-        <svg class="sky-legend-shape" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="#243347" stroke-width="1.5"/></svg>
-        Не исп.
-      </div>
-    </div>
-  `;
-
-  $('body-skyview').innerHTML = svg + legend;
-}
-
-function renderTracking(d) {
-  const tr = d.tracking || {};
-
-  function kv(label, valObj, extra) {
-    if (!valObj) return '';
-    const v = typeof valObj === 'object' && valObj.value !== undefined
-      ? `${h(valObj.value)}<span style="color:var(--text3);font-size:.68rem;margin-left:3px">${h(valObj.unit)}</span>`
-      : h(valObj);
-    return `<div class="kv-row"><span class="kv-key">${label}</span><span class="kv-val ${extra||''}">${v}</span></div>`;
-  }
-
-  const sysVal = Math.abs(parseFloat(tr.system_time || 0));
-  const sysCls = sysVal > 0.5 ? 'error' : sysVal > 0.1 ? 'warn' : 'good';
-
-  $('body-tracking').innerHTML = `<div class="kv-list">
-    ${kv('Reference ID', tr.reference_id, 'accent')}
-    ${kv('Stratum', tr.stratum)}
-    ${kv('Ref time (UTC)', tr.ref_time ? tr.ref_time.substring(0,19) : '—')}
-    ${kv('Смещение', tr.system_time_fmt, sysCls)}
-    ${kv('Last offset', tr.last_offset_fmt)}
-    ${kv('RMS offset', tr.rms_offset_fmt)}
-    ${kv('Частота', tr.frequency ? tr.frequency + ' ppm' : '—')}
-    ${kv('Skew', tr.skew ? tr.skew + ' ppm' : '—')}
-    ${kv('Root delay', tr.root_delay_fmt)}
-    ${kv('Root dispersion', tr.root_dispersion_fmt)}
-    ${kv('Интервал обновл.', tr.update_interval ? tr.update_interval + ' с' : '—')}
-    ${kv('Leap status', tr.leap_status, tr.leap_status === 'Normal' ? 'good' : 'warn')}
+  let rings='',rads='';
+  for(let el=0;el<=75;el+=15){const r=R*(1-el/90);rings+=`<circle cx="${CX}" cy="${CY}" r="${r.toFixed(1)}" fill="none" stroke="${C.ring}" stroke-width="0.5" ${el>0?'stroke-dasharray="3,4"':''}/>`;if(el>0)rings+=`<text x="${(CX+4).toFixed(1)}" y="${(CY-r+8).toFixed(1)}" font-family="JetBrains Mono,monospace" font-size="6.5" fill="${C.gt}">${el}°</text>`;}
+  for(let az=0;az<180;az+=30){const[x0,y0]=azel2xy(az,0),[x1,y1]=azel2xy(az+180,0);rads+=`<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="${C.ring}" stroke-width="0.5"/>`;}
+  const comp=[{l:'N',az:0,ox:0,oy:-4},{l:'E',az:90,ox:8,oy:4},{l:'S',az:180,ox:0,oy:11},{l:'W',az:270,ox:-10,oy:4}].map(({l,az,ox,oy})=>{const[x,y]=azel2xy(az,0);return`<text x="${(x+ox).toFixed(1)}" y="${(y+oy).toFixed(1)}" font-family="JetBrains Mono,monospace" font-size="9" font-weight="700" fill="${C.cp}" text-anchor="middle">${l}</text>`;}).join('');
+  if(!sats.length){$('body-skyview').innerHTML='<div class="err-msg">Нет данных о спутниках</div>';bb.textContent='—';bb.className='block-badge';return;}
+  const uc=sats.filter(s=>s.used).length;
+  bb.textContent=`${uc}/${sats.length}`;bb.className='block-badge '+(uc>4?'good':uc>0?'warn':'error');
+  $('body-skyview').innerHTML=`<svg id="skyview-svg" viewBox="0 0 ${SZ} ${SZ}" width="${SZ}" height="${SZ}" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="${CX}" cy="${CY}" r="${R}" fill="#0a0e14" stroke="${C.ring}" stroke-width="1"/>
+    ${rings}${rads}${comp}${sats.map(satEl).join('')}
+  </svg>
+  <div class="sky-legend">
+    <div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 11 11"><circle cx="5.5" cy="5.5" r="4" fill="#39d98a"/></svg>GPS ≥40</div>
+    <div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 11 11"><circle cx="5.5" cy="5.5" r="4" fill="#f5c842"/></svg>30–39</div>
+    <div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 11 11"><circle cx="5.5" cy="5.5" r="4" fill="#ff4d6a"/></svg>&lt;30</div>
+    <div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 11 11"><rect x="1" y="1" width="9" height="9" fill="none" stroke="#39d98a" stroke-width="1.5"/></svg>GLONASS</div>
+    <div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 11 11"><polygon points="5.5,1 10,10 1,10" fill="none" stroke="#39d98a" stroke-width="1.5"/></svg>Galileo▲</div>
+    <div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 11 11"><polygon points="5.5,10 10,1 1,1" fill="none" stroke="#39d98a" stroke-width="1.5"/></svg>BeiDou▼</div>
+    <div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 11 11"><polygon points="5.5,1 10,5.5 5.5,10 1,5.5" fill="none" stroke="#39d98a" stroke-width="1.5"/></svg>SBAS◇</div>
+    <div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 11 11"><circle cx="5.5" cy="5.5" r="4" fill="none" stroke="#243347" stroke-width="1.5"/></svg>Не исп.</div>
   </div>`;
 }
 
+// ── Tracking ───────────────────────────────────────────────
+function renderTracking(d) {
+  const tr=d.tracking||{};
+  const kv=(l,v,e='')=>{if(!v&&v!==0)return'';const val=typeof v==='object'&&v.value!==undefined?`${h(v.value)}<span style="color:var(--text3);font-size:.63rem;margin-left:2px">${h(v.unit)}</span>`:h(v);return`<div class="kv-row"><span class="kv-key">${l}</span><span class="kv-val ${e}">${val}</span></div>`;};
+  const sv=Math.abs(parseFloat(tr.system_time||0));
+  const scls=sv>0.5?'error':sv>0.1?'warn':'good';
+  $('body-tracking').innerHTML=`<div class="kv-list">
+    ${kv('Reference ID',tr.reference_id,'accent')}
+    ${kv('Stratum',tr.stratum)}
+    ${kv('Ref time (UTC)',tr.ref_time?tr.ref_time.substring(0,19):'—')}
+    ${kv('Смещение',tr.system_time_fmt,scls)}
+    ${kv('Last offset',tr.last_offset_fmt)}
+    ${kv('RMS offset',tr.rms_offset_fmt)}
+    ${kv('Частота',tr.frequency?tr.frequency+' ppm':'—')}
+    ${kv('Skew',tr.skew?tr.skew+' ppm':'—')}
+    ${kv('Root delay',tr.root_delay_fmt)}
+    ${kv('Root dispersion',tr.root_dispersion_fmt)}
+    ${kv('Интервал',tr.update_interval?tr.update_interval+' с':'—')}
+    ${kv('Leap status',tr.leap_status,tr.leap_status==='Normal'?'good':'warn')}
+  </div>`;
+}
+
+// ── Clients ────────────────────────────────────────────────
 function renderClients(d) {
-  const cl = d.clients || {};
-  const list = (cl.list || []).filter(c => c.hostname !== 'localhost');
-  const realCount = list.length;
+  const list=(d.clients?.list||[]).filter(c=>c.hostname!=='localhost');
+  $('bb-clients').textContent=list.length+' клиент'+(list.length===1?'':'ов');
+  $('bb-clients').className='block-badge '+(list.length>0?'good':'');
+  if(!list.length){$('body-clients').innerHTML='<div class="info-msg">Нет активных клиентов</div>';return;}
+  $('body-clients').innerHTML=`<table class="clients-table"><thead><tr><th>Хост</th><th>NTP</th><th>Drop</th><th>Last</th></tr></thead><tbody>${
+    list.map(c=>`<tr><td style="color:var(--text);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(c.hostname)}">${h(c.hostname)}</td><td>${c.ntp}</td><td>${c.drop>0?`<span style="color:var(--yellow)">${c.drop}</span>`:'0'}</td><td>${h(c.last)}</td></tr>`).join('')
+  }</tbody></table>`;
+}
 
-  $('bb-clients').textContent = realCount + ' клиент' + (realCount === 1 ? '' : 'ов');
-  $('bb-clients').className = 'block-badge ' + (realCount > 0 ? 'good' : '');
+// ── System ─────────────────────────────────────────────────
+function renderSystem(d) {
+  const sys=d.system||{}, ss=d.serverstats||{}, mem=sys.memory||{}, load=sys.load||[0,0,0];
+  const t=sys.temp, tc=t>75?'error':t>60?'warn':'good';
+  const mp=mem.percent||0, mc=mp>90?'error':mp>75?'warn':'good';
+  $('body-system').innerHTML=`<div class="kv-list">
+    <div class="kv-row"><span class="kv-key">Uptime</span><span class="kv-val">${h(sys.uptime)}</span></div>
+    ${t!=null?`<div class="kv-row"><span class="kv-key">Температура</span><span class="kv-val ${tc}">${t} °C</span></div><div class="progress-wrap"><div class="progress-bar ${t>75?'hot':t>60?'warm':''}" style="width:${Math.min(t,100)}%"></div></div>`:''}
+    ${mem.percent!=null?`<div class="kv-row" style="margin-top:4px"><span class="kv-key">RAM</span><span class="kv-val ${mc}">${mp}%</span></div><div class="progress-wrap"><div class="progress-bar ${mc}" style="width:${mp}%"></div></div>`:''}
+    <div class="kv-row" style="margin-top:4px"><span class="kv-key">Load avg</span><span class="kv-val">${load.map(l=>l.toFixed(2)).join(' ')}</span></div>
+    <div class="kv-row"><span class="kv-key">chrony</span><span class="kv-val ${sys.chrony_active?'good':'error'}">${sys.chrony_active?'active':'inactive'}</span></div>
+    <div class="kv-row"><span class="kv-key">gpsd</span><span class="kv-val ${sys.gpsd_active?'good':'error'}">${sys.gpsd_active?'active':'inactive'}</span></div>
+    <div class="kv-row"><span class="kv-key">/dev/pps0</span><span class="kv-val ${sys.pps_device?'good':'error'}">${sys.pps_device?'✓ есть':'✗ нет'}</span></div>
+    <div class="kv-row"><span class="kv-key">/dev/ttyAMA0</span><span class="kv-val ${sys.uart_device?'good':'error'}">${sys.uart_device?'✓ есть':'✗ нет'}</span></div>
+    ${ss.packets_received!=null?`<div class="kv-row"><span class="kv-key">NTP пакетов</span><span class="kv-val">${ss.packets_received}</span></div>`:''}
+    ${ss.packets_dropped>0?`<div class="kv-row"><span class="kv-key">Отброшено</span><span class="kv-val warn">${ss.packets_dropped}</span></div>`:''}
+  </div>`;
+}
 
-  if (!realCount) {
-    $('body-clients').innerHTML = '<div class="err-msg">Нет активных клиентов</div>';
+// ── Sourcestats ────────────────────────────────────────────
+function renderSourcestats(d) {
+  const list=(d.sourcestats||{}).list||[];
+  if(!list.length){$('body-sourcestats').innerHTML='<div class="info-msg">Нет данных</div>';return;}
+  $('body-sourcestats').innerHTML=`<table class="ss-table"><thead><tr><th>Источник</th><th>NP</th><th>NR</th><th>Span</th><th>Freq (ppm)</th><th>Freq skew</th><th>Offset</th><th>Std Dev</th></tr></thead><tbody>${
+    list.map(s=>`<tr><td style="color:var(--text)">${h(s.name)}</td><td>${h(s.np)}</td><td>${h(s.nr)}</td><td>${h(s.span)}</td><td>${h(s.frequency)}</td><td>${h(s.freq_skew)}</td><td>${h(s.offset)}</td><td>${h(s.std_dev)}</td></tr>`).join('')
+  }</tbody></table>`;
+}
+
+// ── Chart ──────────────────────────────────────────────────
+function addOffsetPoint(tr) {
+  const v=parseFloat(tr.system_time||0);
+  if(!isNaN(v)) { offsets.push({t:Date.now(),v:v*1e9}); if(offsets.length>300)offsets.shift(); }
+}
+
+function renderChart() {
+  const body=$('body-chart');
+  if(offsets.length<2){
+    body.innerHTML='<div class="chart-no-data"><div class="info-msg">Накапливаем историю offset...</div><div style="font-size:.63rem;color:var(--text3)">Данные появятся через несколько обновлений (15 с каждое)</div></div>';
     return;
   }
+  if(!$('offset-canvas')) body.innerHTML='<canvas id="offset-canvas"></canvas>';
+  const cvs=$('offset-canvas');
+  if(!cvs)return;
+  const W=cvs.parentElement.clientWidth||900, H=200;
+  cvs.width=W; cvs.height=H;
+  const ctx=cvs.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  const vals=offsets.map(p=>p.v);
+  let mn=Math.min(...vals), mx=Math.max(...vals);
+  const rng=mx-mn||1; mn-=rng*.15; mx+=rng*.15;
+  const pad={t:18,r:65,b:28,l:62};
+  const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+  const tx=t=>pad.l+((t-offsets[0].t)/(offsets[offsets.length-1].t-offsets[0].t||1))*cw;
+  const ty=v=>pad.t+(1-(v-mn)/(mx-mn))*ch;
 
-  $('body-clients').innerHTML = `
-    <table class="clients-table">
-      <thead><tr><th>Хост</th><th>NTP</th><th>Drop</th><th>Last</th></tr></thead>
-      <tbody>
-        ${list.map(c => `
-          <tr>
-            <td style="color:var(--text);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(c.hostname)}">${h(c.hostname)}</td>
-            <td>${c.ntp}</td>
-            <td>${c.drop > 0 ? `<span style="color:var(--yellow)">${c.drop}</span>` : '0'}</td>
-            <td>${h(c.last)}</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  `;
+  // Grid
+  for(let i=0;i<=4;i++){
+    const y=pad.t+i*ch/4;
+    ctx.strokeStyle='#1e2a3a'; ctx.lineWidth=.5;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
+    const val=mx-i*(mx-mn)/4;
+    ctx.fillStyle='#4a6a88'; ctx.font='10px JetBrains Mono,monospace'; ctx.textAlign='right';
+    ctx.fillText(val.toFixed(1)+' нс',pad.l-4,y+4);
+  }
+  // Zero line
+  if(mn<0&&mx>0){
+    const y0=ty(0);
+    ctx.strokeStyle='#243347'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(pad.l,y0); ctx.lineTo(W-pad.r,y0); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // Area
+  ctx.beginPath(); ctx.moveTo(tx(offsets[0].t),ty(0));
+  offsets.forEach(p=>ctx.lineTo(tx(p.t),ty(p.v)));
+  ctx.lineTo(tx(offsets[offsets.length-1].t),ty(0)); ctx.closePath();
+  const g=ctx.createLinearGradient(0,pad.t,0,H-pad.b);
+  g.addColorStop(0,'rgba(0,212,255,.18)'); g.addColorStop(1,'rgba(0,212,255,.01)');
+  ctx.fillStyle=g; ctx.fill();
+  // Line
+  ctx.beginPath(); ctx.strokeStyle='#00d4ff'; ctx.lineWidth=1.5; ctx.lineJoin='round';
+  offsets.forEach((p,i)=>{const x=tx(p.t),y=ty(p.v);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.stroke();
+  // Last point
+  const lp=offsets[offsets.length-1];
+  ctx.beginPath(); ctx.arc(tx(lp.t),ty(lp.v),3,0,Math.PI*2);
+  ctx.fillStyle='#00d4ff'; ctx.fill();
+  ctx.fillStyle='#00d4ff'; ctx.font='bold 11px JetBrains Mono,monospace'; ctx.textAlign='left';
+  ctx.fillText(lp.v.toFixed(2)+' нс',W-pad.r+4,ty(lp.v)+4);
+  // Time axis
+  ctx.fillStyle='#4a6a88'; ctx.font='10px JetBrains Mono,monospace'; ctx.textAlign='center';
+  [0,.25,.5,.75,1].forEach(f=>{
+    const p=offsets[Math.floor(f*(offsets.length-1))];
+    if(!p)return;
+    const d=new Date(p.t);
+    ctx.fillText(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`,tx(p.t),H-pad.b+14);
+  });
+  $('bb-chart').textContent=lp.v.toFixed(2)+' нс';
 }
 
-function renderSystem(d) {
-  const sys = d.system || {};
-  const ss  = d.serverstats || {};
-  const mem = sys.memory || {};
-  const load = sys.load || [0,0,0];
-  const temp = sys.temp;
-  const tempCls = temp > 75 ? 'error' : temp > 60 ? 'warn' : 'good';
-  const memPct  = mem.percent || 0;
-  const memCls  = memPct > 90 ? 'error' : memPct > 75 ? 'warn' : 'good';
-
-  $('body-system').innerHTML = `
-    <div class="kv-list">
-      <div class="kv-row"><span class="kv-key">Uptime</span><span class="kv-val">${h(sys.uptime)}</span></div>
-      ${temp != null ? `
-        <div class="kv-row"><span class="kv-key">Температура</span><span class="kv-val ${tempCls}">${temp} °C</span></div>
-        <div class="progress-wrap"><div class="progress-bar ${temp>75?'hot':temp>60?'warm':''}" style="width:${Math.min(temp,100)}%"></div></div>
-      ` : ''}
-      ${mem.percent != null ? `
-        <div class="kv-row" style="margin-top:6px"><span class="kv-key">RAM</span><span class="kv-val ${memCls}">${memPct}%</span></div>
-        <div class="progress-wrap"><div class="progress-bar ${memCls}" style="width:${memPct}%"></div></div>
-      ` : ''}
-      <div class="kv-row" style="margin-top:6px"><span class="kv-key">Load avg</span><span class="kv-val">${load.map(l=>l.toFixed(2)).join(' ')}</span></div>
-      <div class="kv-row"><span class="kv-key">chrony</span><span class="kv-val ${sys.chrony_active?'good':'error'}">${sys.chrony_active?'active':'inactive'}</span></div>
-      <div class="kv-row"><span class="kv-key">gpsd</span><span class="kv-val ${sys.gpsd_active?'good':'error'}">${sys.gpsd_active?'active':'inactive'}</span></div>
-      <div class="kv-row"><span class="kv-key">/dev/pps0</span><span class="kv-val ${sys.pps_device?'good':'error'}">${sys.pps_device?'present':'missing'}</span></div>
-      <div class="kv-row"><span class="kv-key">/dev/ttyAMA0</span><span class="kv-val ${sys.uart_device?'good':'error'}">${sys.uart_device?'present':'missing'}</span></div>
-      ${ss.packets_received != null ? `<div class="kv-row"><span class="kv-key">NTP пакетов</span><span class="kv-val">${ss.packets_received}</span></div>` : ''}
-      ${ss.packets_dropped  != null && ss.packets_dropped > 0 ? `<div class="kv-row"><span class="kv-key">Отброшено</span><span class="kv-val warn">${ss.packets_dropped}</span></div>` : ''}
-    </div>
-  `;
-}
-
-function renderSourcestats(d) {
-  const ss = d.sourcestats || {};
-  const list = ss.list || [];
-
-  if (!list.length) { $('body-sourcestats').innerHTML = '<div class="err-msg">Нет данных</div>'; return; }
-
-  $('body-sourcestats').innerHTML = `
-    <table class="sources-table">
-      <thead><tr>
-        <th>Источник</th><th>NP</th><th>NR</th><th>Span</th><th>Freq (ppm)</th><th>Freq skew</th><th>Offset</th><th>Std Dev</th>
-      </tr></thead>
-      <tbody>
-        ${list.map(s => `<tr>
-          <td style="color:var(--text)">${h(s.name)}</td>
-          <td>${h(s.np)}</td><td>${h(s.nr)}</td><td>${h(s.span)}</td>
-          <td>${h(s.frequency)}</td><td>${h(s.freq_skew)}</td>
-          <td>${h(s.offset)}</td><td>${h(s.std_dev)}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-  `;
-}
-
-function renderHeader(d) {
-  const sys = d.system || {};
-  $('h-hostname').textContent = sys.hostname || '—';
-  $('h-time').textContent = new Date().toLocaleTimeString('ru-RU');
-
-  const svc = [
-    { label: 'chrony', on: sys.chrony_active },
-    { label: 'gpsd',   on: sys.gpsd_active },
-    { label: 'PPS',    on: sys.pps_device },
-  ];
-  $('h-services').innerHTML = svc.map(s =>
-    `<div class="svc-pill ${s.on?'on':'off'}"><span class="status-dot" style="width:6px;height:6px;${s.on?'background:var(--green)':'background:var(--red)'}"></span>${s.label}</div>`
-  ).join('');
-}
-
-// ─── Main render ───────────────────────────────────────────
-
-function render(d) {
-  renderHeader(d);
-  renderCards(d);
-  renderSources(d);
-  renderGps(d);
-  renderTracking(d);
-  renderClients(d);
-  renderSystem(d);
-  renderSourcestats(d);
-}
-
-// ─── Fetch ─────────────────────────────────────────────────
-
-async function refresh() {
+// ── Repair actions ─────────────────────────────────────────
+async function doAction(action,outId) {
+  const el=$(outId);
+  el.className='repair-output';
+  el.innerHTML='<span class="spinner"></span>Выполняется...';
+  document.querySelectorAll('.btn').forEach(b=>b.disabled=true);
   try {
-    const r = await fetch(API + '?_=' + Date.now());
-    const d = await r.json();
-    render(d);
-
-    // Hide loader on first load
-    const loader = $('loader');
-    if (loader.style.display !== 'none') {
-      loader.style.opacity = '0';
-      setTimeout(() => { loader.style.display = 'none'; }, 400);
-      $('app').style.opacity = '1';
-    }
+    const r=await fetch(`${ACTION}?action=${action}&_=${Date.now()}`);
+    const d=await r.json();
+    el.textContent=d.output||d.error||'(нет вывода)';
+    el.className='repair-output'+(d.success===false?' error-out':'');
   } catch(e) {
-    console.error('API error:', e);
-    $('h-time').textContent = 'Ошибка';
+    el.textContent='Ошибка: '+e.message;
+    el.className='repair-output error-out';
+  } finally {
+    document.querySelectorAll('.btn').forEach(b=>b.disabled=false);
   }
 }
 
-// Auto-refresh every 15 seconds
-function startTimer() {
-  clearInterval(refreshTimer);
-  refreshTimer = setInterval(refresh, 15000);
+// ── Main ───────────────────────────────────────────────────
+function render(d) {
+  renderHeader(d); renderCards(d); renderSources(d); renderGps(d);
+  renderTracking(d); renderClients(d); renderSystem(d); renderSourcestats(d);
+  addOffsetPoint(d.tracking||{}); renderChart();
 }
 
+let firstLoad=true;
+async function refresh() {
+  try {
+    const d=await (await fetch(API+'?_='+Date.now())).json();
+    render(d);
+    if(firstLoad){
+      firstLoad=false;
+      const l=$('loader'); l.style.opacity='0';
+      setTimeout(()=>l.style.display='none',400);
+      $('app').style.opacity='1';
+    }
+  } catch(e){ $('h-time').textContent='Ошибка соединения'; }
+}
+
+function startTimer(){ clearInterval(refreshTimer); refreshTimer=setInterval(refresh,15000); }
 refresh().then(startTimer);
 </script>
 </body>
