@@ -292,6 +292,40 @@ function getGpsd() {
         ];
     }
 
+    // GNSS модуль — информация из gpsd DEVICES
+    foreach ($lines as $line) {
+        $j = json_decode(trim($line), true);
+        if (!is_array($j) || $j['class']!=='DEVICES') continue;
+        foreach ($j['devices']??[] as $dev) {
+            if (strpos($dev['path']??'','ttyAMA')===false) continue;
+            $sub  = $dev['subtype']  ?? '';
+            $sub1 = $dev['subtype1'] ?? '';
+            $gnss = ['driver'=>$dev['driver']??'','bps'=>$dev['bps']??0,'native'=>$dev['native']??0,'path'=>$dev['path']??''];
+            if (preg_match('/SW\s+(.+?),HW\s+(.+)/', $sub, $m)) {
+                $gnss['firmware'] = trim($m[1]);
+                $gnss['hardware'] = trim($m[2]);
+            }
+            foreach (explode(',', $sub1) as $p) {
+                if (str_starts_with($p,'FWVER='))   $gnss['fwver']   = substr($p,6);
+                if (str_starts_with($p,'PROTVER=')) $gnss['protver'] = substr($p,8);
+                if (str_contains($p,';')&&!str_contains($p,'=')) {
+                    $sys = explode(';',$p);
+                    if (count($sys)>2) $gnss['gnss_systems'] = $sys;
+                    else $gnss['augmentation'] = $sys;
+                }
+            }
+            $data['module'] = $gnss;
+        }
+    }
+
+    // Baudrate порта
+    $stty = runCommand('stty -F /dev/ttyAMA0 2>/dev/null | head -1');
+    $baud = null;
+    if (preg_match('/speed (\d+) baud/', $stty['output'], $bm)) {
+        $baud = (int)$bm[1];
+    }
+    $data['uart_baud'] = $baud;
+
     // PPS статус
     $data['pps'] = file_exists('/dev/pps0');
 
@@ -349,19 +383,47 @@ function getSystem() {
     ];
 }
 
+// ─── История offset из лога chrony ────────────────────────────────────────
+
+function getOffsetHistory() {
+    $points = [];
+    $logfile = '/var/log/chrony/measurements.log';
+    $hasLog  = file_exists($logfile);
+
+    if ($hasLog) {
+        $lines = @file($logfile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if ($lines) {
+            $lines = array_slice($lines, -500);
+            foreach ($lines as $line) {
+                if ($line[0] === '=' || $line[0] === '#') continue;
+                $f = preg_split('/\s+/', trim($line));
+                if (count($f) < 9) continue;
+                $ts  = @strtotime($f[0] . ' ' . $f[1]);
+                $off = isset($f[7]) ? (float)$f[7] : null;
+                if ($ts > 0 && $off !== null) {
+                    $points[] = ['t' => $ts * 1000, 'v' => round($off * 1e9, 2)]; // в нс
+                }
+            }
+        }
+    }
+
+    return ['points' => $points, 'has_log' => $hasLog, 'logfile' => $logfile];
+}
+
 // ─── Сборка ответа ────────────────────────────────────────────────────────
 
 $response = [
-    'timestamp'   => date('c'),
-    'timestamp_ms'=> round(microtime(true) * 1000),
-    'tracking'    => getTracking(),
-    'sources'     => getSources(),
-    'sourcestats' => getSourcestats(),
-    'activity'    => getActivity(),
-    'clients'     => getClients(),
-    'serverstats' => getServerstats(),
-    'gpsd'        => getGpsd(),
-    'system'      => getSystem(),
+    'timestamp'      => date('c'),
+    'timestamp_ms'   => round(microtime(true) * 1000),
+    'tracking'       => getTracking(),
+    'sources'        => getSources(),
+    'sourcestats'    => getSourcestats(),
+    'activity'       => getActivity(),
+    'clients'        => getClients(),
+    'serverstats'    => getServerstats(),
+    'gpsd'           => getGpsd(),
+    'system'         => getSystem(),
+    'offset_history' => getOffsetHistory(),
 ];
 
 echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
