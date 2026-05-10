@@ -1,0 +1,46 @@
+{
+  "monitor": {
+    "refresh_interval": 15,
+    "theme": "auto",
+    "theme_dark_from": "20:00",
+    "theme_light_from": "07:00",
+    "title": "NTP Monitor"
+  },
+  "server": {
+    "hostname": "",
+    "ntp_port": 123,
+    "allow_subnet": "192.168.0.0/16"
+  },
+  "gnss": {
+    "device": "/dev/ttyAMA0",
+    "pps_device": "/dev/pps0",
+    "baudrate": 9600,
+    "pps_gpio": 4
+  },
+  "map": {
+    "enabled": true,
+    "zoom": 14,
+    "tile_server": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+  },
+  "telegram": {
+    "enabled": true,
+    "bot_token": "TOKEN",
+    "chat_id": "ID",
+    "proxy_enabled": true,
+    "proxy_host": "HOST",
+    "proxy_port": PORT,
+    "proxy_user": "USER",
+    "proxy_pass": "PASS",
+    "alerts": {
+      "gpsd_down": true,
+      "chrony_down": true,
+      "pps_lost": true,
+      "stratum_change": true,
+      "offset_threshold_ms": 10
+    }
+  },
+  "ser2net": {
+    "port": 2947,
+    "baudrate": 9600
+  }
+}
