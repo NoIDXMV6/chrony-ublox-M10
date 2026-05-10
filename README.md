@@ -2,6 +2,7 @@
 
 **Платформа:** Raspberry Pi 4 · Armbian Trixie (Debian 13) · ядро 6.x  
 **GNSS модуль:** QUESCAN UBX-M10050-KB (u-blox M10) с PPS  https://ali.click/egbg811
+
 **Точность:** ~150–300 нс (PPS-дисциплинированный источник)
 
 ---
