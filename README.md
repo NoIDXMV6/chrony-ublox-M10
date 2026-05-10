@@ -339,7 +339,7 @@ w32tm /register
   PPS GPIO4   ────  │  pps_gpio           │──► chrony (Stratum 1)
                     │    └── /dev/pps0 ──►│         │
                     └─────────────────────┘         │
-                                                     ▼
+                                                    ▼
 
                                               LAN клиенты
                                           (или через MikroTik)
