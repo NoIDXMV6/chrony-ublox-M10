@@ -1,7 +1,7 @@
 # Stratum 1 NTP Сервер на Raspberry Pi 4
 
 **Платформа:** Raspberry Pi 4 · Armbian Trixie (Debian 13) · ядро 6.x  
-**GNSS модуль:** QUESCAN UBX-M10050-KB (u-blox M10) с PPS  
+**GNSS модуль:** QUESCAN UBX-M10050-KB (u-blox M10) с PPS  https://ali.click/egbg811
 **Точность:** ~150–300 нс (PPS-дисциплинированный источник)
 
 ---
@@ -214,7 +214,7 @@ sc start w32time
 Теперь выполните вашу исходную команду:
 
 ```cmd
-w32tm /config /manualpeerlist:<IP> /syncfromflags:manual /reliable:YES /update
+w32tm /config /manualpeerlist:<IP_Raspberry_Pi> /syncfromflags:manual /reliable:YES /update
 ```
 
 Шаг 6. Проверить статус синхронизации
@@ -228,7 +228,7 @@ w32tm /query /status
 ```
 Leap Indicator: 0;
 Stratum: 1–5 (не 16 — это значит, нет синхронизации);
-Reference ID: IP вашего NTP‑сервера (192.168.168.112);
+Reference ID: IP вашего NTP‑сервера (<IP_Raspberry_Pi>);
 Last Successful Sync Time: должна быть недавняя дата.
 ```
 
@@ -253,7 +253,7 @@ w32tm /register
 net start w32time
 
 :: Настроить синхронизацию с вашим NTP‑сервером
-w32tm /config /manualpeerlist:192.168.168.112 /syncfromflags:manual /reliable:YES /update
+w32tm /config /manualpeerlist:<IP_Raspberry_Pi> /syncfromflags:manual /reliable:YES /update
 
 :: Принудительно синхронизировать
 w32tm /resync
@@ -267,16 +267,16 @@ w32tm /query /status
 
 Брандмауэр. Убедитесь, что брандмауэр разрешает UDP‑порт 123 (NTP).
 
-Доступность сервера. Проверьте, что сервер 192.168.168.112 доступен:
+Доступность сервера. Проверьте, что сервер <IP_Raspberry_Pi> доступен:
 
 ```cmd
-ping 192.168.168.112
+ping <IP_Raspberry_Pi>
 ```
 
 Альтернативный формат списка пиров. Если команда с одним IP не сработает, попробуйте указать список через пробел (в кавычках):
 
 ```cmd
-w32tm /config /manualpeerlist:"192.168.168.112 pool.ntp.org" /syncfromflags:manual /update
+w32tm /config /manualpeerlist:"<IP_Raspberry_Pi> pool.ntp.org" /syncfromflags:manual /update
 ```
 
 Сброс конфигурации (если нужно начать с чистого листа):
@@ -290,7 +290,7 @@ w32tm /register
 Расшифровка параметров вашей команды
 
 ```
-/manualpeerlist:<IP> — указать конкретный NTP‑сервер для синхронизации;
+/manualpeerlist:<IP_Raspberry_Pi> — указать конкретный NTP‑сервер для синхронизации;
 
 /syncfromflags:manual — синхронизироваться только с указанными вручную серверами;
 
@@ -333,9 +333,9 @@ w32tm /register
                     ┌─────────────────────┐
   GNSS антенна      │   Raspberry Pi 4    │
        │            │                     │
-  u-blox M10  ──── │  gpsd               │
+  u-blox M10  ────  │  gpsd               │
   UART 38400        │    └── SHM 0 ──────►│
-  PPS GPIO4   ──── │  pps_gpio           │──► chrony (Stratum 1)
+  PPS GPIO4   ────  │  pps_gpio           │──► chrony (Stratum 1)
                     │    └── /dev/pps0 ──►│         │
                     └─────────────────────┘         │
                                                      ▼
