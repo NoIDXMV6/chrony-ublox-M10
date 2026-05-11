@@ -1,0 +1,205 @@
+{
+  "loader": "Initializing...",
+  "clock": {
+    "loading": "Loading..."
+  },
+  "header": {
+    "title": "NTP Monitor",
+    "hostname": "—",
+    "services": {
+      "chrony": "chrony",
+      "gpsd": "gpsd",
+      "pps": "PPS"
+    },
+    "telegram_on": "✓ TG",
+    "telegram_off": "",
+    "mode_ntp": "⏱ NTP",
+    "mode_ucenter": "📡 u-center",
+    "refresh": "↻",
+    "data_label": "Data:",
+    "theme_dark": "🌙",
+    "theme_light": "☀️"
+  },
+  "cards": {
+    "stratum": "Stratum",
+    "offset": "Offset",
+    "rms_offset": "RMS offset",
+    "frequency": "Frequency",
+    "satellites": "Satellites",
+    "online": "Online",
+    "uart": "UART",
+    "leap": "Leap",
+    "offset_desc": "from NTP time",
+    "rms_desc": "moving average",
+    "freq_desc": "drift",
+    "sat_desc": "used/visible",
+    "online_desc_offline": "offline",
+    "uart_desc": "/dev/ttyAMA0",
+    "leap_normal": "Normal",
+    "unit_ppm": "ppm",
+    "unit_bps": "bps"
+  },
+  "sources": {
+    "title": "Time Sources",
+    "no_sources": "No sources",
+    "state_selected": "Selected",
+    "state_combined": "Combined",
+    "state_unused": "Not used",
+    "state_error": "Error",
+    "state_unstable": "Unstable",
+    "state_unreachable": "Unreachable",
+    "ok": "OK",
+    "warn": "WARN",
+    "err": "ERR"
+  },
+  "gps": {
+    "title": "GPS / GNSS",
+    "fix": "Fix",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "altitude": "Altitude",
+    "uart": "UART",
+    "pps": "PPS",
+    "hdop": "HDOP",
+    "pdop": "PDOP",
+    "satellites": "Satellites",
+    "mode_no_data": "No data",
+    "mode_no_fix": "No fix",
+    "mode_2d": "2D fix",
+    "mode_3d": "3D fix",
+    "mode_unknown": "Unknown",
+    "pps_yes": "✓ /dev/pps0",
+    "pps_no": "✗ none",
+    "gpsd_unavailable": "gpsd unavailable"
+  },
+  "gnss": {
+    "title": "GNSS module",
+    "driver": "Driver",
+    "firmware": "Firmware",
+    "fw_ver": "FW version",
+    "protocol": "Protocol",
+    "hw_ver": "HW version",
+    "baudrate": "Baudrate",
+    "mode": "Mode",
+    "mode_nmea": "NMEA",
+    "mode_ubx": "u-blox UBX",
+    "no_data": "No data"
+  },
+  "skyview": {
+    "title": "Skyview",
+    "no_data": "No data"
+  },
+  "snr": {
+    "title": "Satellite Signal Strength (SNR dBHz)",
+    "no_data": "No satellite data",
+    "legend_gps": "GPS",
+    "legend_glonass": "GLONASS",
+    "legend_galileo": "Galileo",
+    "legend_beidou": "BeiDou",
+    "legend_sbas": "SBAS",
+    "legend_brightness": "Brightness = SNR · Dark = unused"
+  },
+  "tracking": {
+    "title": "Synchronization",
+    "ref_id": "Reference ID",
+    "stratum": "Stratum",
+    "ref_time": "Ref time",
+    "system_time": "Offset",
+    "last_offset": "Last offset",
+    "rms_offset": "RMS offset",
+    "frequency": "Frequency",
+    "skew": "Skew",
+    "root_delay": "Root delay",
+    "leap": "Leap",
+    "leap_normal": "Normal"
+  },
+  "clients": {
+    "title": "NTP Clients",
+    "no_clients": "No active clients",
+    "host": "Host",
+    "ntp": "NTP",
+    "drop": "Drop",
+    "last": "Last"
+  },
+  "system": {
+    "title": "System",
+    "uptime": "Uptime",
+    "temp": "Temperature",
+    "ram": "RAM",
+    "load": "Load",
+    "chrony": "chrony",
+    "gpsd": "gpsd",
+    "pps0": "/dev/pps0",
+    "ttyAMA0": "/dev/ttyAMA0",
+    "ntp_packets": "NTP packets",
+    "active": "active",
+    "stopped": "stopped",
+    "yes": "✓",
+    "no": "✗"
+  },
+  "sourcestats": {
+    "title": "Source Statistics (sourcestats)",
+    "no_data": "No data"
+  },
+  "chart": {
+    "title": "Time Offset Chart — System Offset",
+    "no_data": "No GPS fix"
+  },
+  "repair": {
+    "title": "⚙ Control & Diagnostics Panel",
+    "service_control": "Service Control",
+    "uart_diag": "UART Diagnostics",
+    "btn_makestep": "⏱ Force sync",
+    "btn_restart_gpsd": "↺ gpsd",
+    "btn_restart_chrony": "↺ chrony",
+    "btn_raw_nmea": "📡 Raw NMEA data",
+    "btn_port_info": "ℹ Port info",
+    "ready": "Ready...",
+    "executing": "Executing...",
+    "switching": "Switching...",
+    "error_auth": "Invalid password. Try again.",
+    "error_connection": "Connection error: ",
+    "action_cancelled": "Action cancelled"
+  },
+  "map": {
+    "no_fix": "No GPS fix"
+  },
+  "popup_conn": {
+    "title_ntp": "NTP Server Connection",
+    "title_ucenter": "u-center Connection (ser2net)",
+    "placeholder": "Instructions not configured in config.json"
+  },
+  "popup_settings": {
+    "title": "⚙ Monitor Settings",
+    "theme": "Theme",
+    "theme_dark": "🌙 Dark",
+    "theme_light": "☀️ Light",
+    "theme_auto": "🕐 Auto (time of day)",
+    "refresh_interval": "Refresh interval",
+    "config_label": "config.json",
+    "btn_save": "💾 Save",
+    "btn_telegram_test": "📨 Test Telegram",
+    "telegram_response": "Telegram response",
+    "json_error": "JSON error: ",
+    "saved": "Saved",
+    "error": "Error"
+  },
+  "pwd_dialog": {
+    "title": "Confirm Action",
+    "message": "Enter password to proceed",
+    "placeholder": "Password",
+    "cancel": "Cancel",
+    "ok": "Confirm",
+    "show": "👁",
+    "hide": "🙈",
+    "error_empty": "Enter password"
+  },
+  "baud_dialog": {
+    "title": "u-center Baudrate",
+    "message": "Select connection speed",
+    "cancel": "Cancel",
+    "ok": "Confirm",
+    "unit": "baud"
+  },
+  "footer": "⭐ github.com/NoIDXMV6/chrony-ublox-M10"
+}

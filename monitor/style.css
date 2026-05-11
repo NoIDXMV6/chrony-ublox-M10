@@ -479,3 +479,35 @@ body {
 #baud-select:focus {
   border-color: var(--accent2);
 }
+/* Динамический контейнер переключателя языка (правый верхний угол) */
+#lang-container {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 1001; /* поверх лоадера, но ниже попапов */
+}
+
+.lang-select {
+  font-family: var(--mono);
+  font-size: .68rem;
+  background: var(--bg3);
+  color: var(--text);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  padding: 3px 6px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color .2s;
+}
+.lang-select:focus {
+  border-color: var(--accent2);
+}
+
+/* На мобильных сдвигаем вниз, чтобы не мешать системной строке */
+@media (max-width: 700px) {
+  #lang-container {
+    top: auto;
+    bottom: 10px;
+    right: 10px;
+  }
+}

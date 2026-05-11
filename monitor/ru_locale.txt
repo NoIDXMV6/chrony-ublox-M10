@@ -1,0 +1,205 @@
+{
+  "loader": "Инициализация...",
+  "clock": {
+    "loading": "Загрузка..."
+  },
+  "header": {
+    "title": "NTP Monitor",
+    "hostname": "—",
+    "services": {
+      "chrony": "chrony",
+      "gpsd": "gpsd",
+      "pps": "PPS"
+    },
+    "telegram_on": "✓ TG",
+    "telegram_off": "",
+    "mode_ntp": "⏱ NTP",
+    "mode_ucenter": "📡 u-center",
+    "refresh": "↻",
+    "data_label": "Данные:",
+    "theme_dark": "🌙",
+    "theme_light": "☀️"
+  },
+  "cards": {
+    "stratum": "Stratum",
+    "offset": "Смещение",
+    "rms_offset": "RMS offset",
+    "frequency": "Частота",
+    "satellites": "Спутников",
+    "online": "Онлайн",
+    "uart": "UART",
+    "leap": "Leap",
+    "offset_desc": "от NTP времени",
+    "rms_desc": "скользящее среднее",
+    "freq_desc": "дрейф",
+    "sat_desc": "исп./видимых",
+    "online_desc_offline": "оффлайн",
+    "uart_desc": "/dev/ttyAMA0",
+    "leap_normal": "Normal",
+    "unit_ppm": "ppm",
+    "unit_bps": "bps"
+  },
+  "sources": {
+    "title": "Источники времени",
+    "no_sources": "Нет источников",
+    "state_selected": "Выбран",
+    "state_combined": "Комбинируется",
+    "state_unused": "Не используется",
+    "state_error": "Ошибка",
+    "state_unstable": "Нестабилен",
+    "state_unreachable": "Недоступен",
+    "ok": "OK",
+    "warn": "WARN",
+    "err": "ERR"
+  },
+  "gps": {
+    "title": "GPS / GNSS",
+    "fix": "Фикс",
+    "latitude": "Широта",
+    "longitude": "Долгота",
+    "altitude": "Высота",
+    "uart": "UART",
+    "pps": "PPS",
+    "hdop": "HDOP",
+    "pdop": "PDOP",
+    "satellites": "Спутников",
+    "mode_no_data": "Нет данных",
+    "mode_no_fix": "Нет фикса",
+    "mode_2d": "2D фикс",
+    "mode_3d": "3D фикс",
+    "mode_unknown": "Неизвестно",
+    "pps_yes": "✓ /dev/pps0",
+    "pps_no": "✗ нет",
+    "gpsd_unavailable": "gpsd недоступен"
+  },
+  "gnss": {
+    "title": "GNSS модуль",
+    "driver": "Драйвер",
+    "firmware": "Прошивка",
+    "fw_ver": "FW версия",
+    "protocol": "Протокол",
+    "hw_ver": "HW версия",
+    "baudrate": "Baudrate",
+    "mode": "Режим",
+    "mode_nmea": "NMEA",
+    "mode_ubx": "u-blox UBX",
+    "no_data": "Нет данных"
+  },
+  "skyview": {
+    "title": "Карта неба",
+    "no_data": "Нет данных"
+  },
+  "snr": {
+    "title": "Уровень сигнала спутников (SNR dBHz)",
+    "no_data": "Нет данных о спутниках",
+    "legend_gps": "GPS",
+    "legend_glonass": "ГЛОНАСС",
+    "legend_galileo": "Galileo",
+    "legend_beidou": "BeiDou",
+    "legend_sbas": "SBAS",
+    "legend_brightness": "Яркость = SNR · Тёмные = не используются"
+  },
+  "tracking": {
+    "title": "Синхронизация",
+    "ref_id": "Reference ID",
+    "stratum": "Stratum",
+    "ref_time": "Ref time",
+    "system_time": "Смещение",
+    "last_offset": "Last offset",
+    "rms_offset": "RMS offset",
+    "frequency": "Частота",
+    "skew": "Skew",
+    "root_delay": "Root delay",
+    "leap": "Leap",
+    "leap_normal": "Normal"
+  },
+  "clients": {
+    "title": "Клиенты NTP",
+    "no_clients": "Нет активных клиентов",
+    "host": "Хост",
+    "ntp": "NTP",
+    "drop": "Drop",
+    "last": "Last"
+  },
+  "system": {
+    "title": "Система",
+    "uptime": "Uptime",
+    "temp": "Температура",
+    "ram": "RAM",
+    "load": "Load",
+    "chrony": "chrony",
+    "gpsd": "gpsd",
+    "pps0": "/dev/pps0",
+    "ttyAMA0": "/dev/ttyAMA0",
+    "ntp_packets": "NTP пакетов",
+    "active": "active",
+    "stopped": "stopped",
+    "yes": "✓",
+    "no": "✗"
+  },
+  "sourcestats": {
+    "title": "Статистика источников (sourcestats)",
+    "no_data": "Нет данных"
+  },
+  "chart": {
+    "title": "График смещения времени — System Offset",
+    "no_data": "Нет GPS фикса"
+  },
+  "repair": {
+    "title": "⚙ Панель управления и диагностики",
+    "service_control": "Управление сервисами",
+    "uart_diag": "Диагностика UART",
+    "btn_makestep": "⏱ Принудительная синхронизация",
+    "btn_restart_gpsd": "↺ gpsd",
+    "btn_restart_chrony": "↺ chrony",
+    "btn_raw_nmea": "📡 Сырые данные NMEA",
+    "btn_port_info": "ℹ Параметры порта",
+    "ready": "Готов к работе...",
+    "executing": "Выполняется...",
+    "switching": "Переключение...",
+    "error_auth": "Неверный пароль. Попробуйте снова.",
+    "error_connection": "Ошибка соединения: ",
+    "action_cancelled": "Действие отменено"
+  },
+  "map": {
+    "no_fix": "Нет GPS фикса"
+  },
+  "popup_conn": {
+    "title_ntp": "Подключение к NTP серверу",
+    "title_ucenter": "Подключение u-center (ser2net)",
+    "placeholder": "Инструкции не настроены в config.json"
+  },
+  "popup_settings": {
+    "title": "⚙ Настройки мониторинга",
+    "theme": "Тема",
+    "theme_dark": "🌙 Тёмная",
+    "theme_light": "☀️ Светлая",
+    "theme_auto": "🕐 Авто (по времени суток)",
+    "refresh_interval": "Интервал обновления",
+    "config_label": "config.json",
+    "btn_save": "💾 Сохранить",
+    "btn_telegram_test": "📨 Тест Telegram",
+    "telegram_response": "Ответ Telegram",
+    "json_error": "Ошибка JSON: ",
+    "saved": "Сохранено",
+    "error": "Ошибка"
+  },
+  "pwd_dialog": {
+    "title": "Подтверждение действия",
+    "message": "Введите пароль для выполнения операции",
+    "placeholder": "Пароль",
+    "cancel": "Отмена",
+    "ok": "Подтвердить",
+    "show": "👁",
+    "hide": "🙈",
+    "error_empty": "Введите пароль"
+  },
+  "baud_dialog": {
+    "title": "Скорость порта для u‑center",
+    "message": "Выберите скорость соединения",
+    "cancel": "Отмена",
+    "ok": "Подтвердить",
+    "unit": "бод"
+  },
+  "footer": "⭐ github.com/NoIDXMV6/chrony-ublox-M10"
+}

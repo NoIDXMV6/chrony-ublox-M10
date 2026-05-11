@@ -19,7 +19,7 @@
 <div id="loader">
   <div class="loader-logo">NTP//MON</div>
   <div class="loader-bar-wrap"><div class="loader-bar"></div></div>
-  <div class="loader-text">Инициализация...</div>
+  <div class="loader-text" id="loader-text">Инициализация...</div>
 </div>
 
 <!-- Connection popup -->
@@ -37,7 +37,7 @@
 <div class="popup-overlay" id="settings-popup">
   <div class="popup" style="max-width:860px">
     <div class="popup-head">
-      <span class="popup-title">⚙ Настройки мониторинга</span>
+      <span class="popup-title" id="settings-title">⚙ Настройки мониторинга</span>
       <button class="popup-close" onclick="closePopup('settings-popup')">✕</button>
     </div>
     <div class="popup-body" id="settings-body"></div>
@@ -69,33 +69,58 @@
       <button class="btn btn-primary btn-icon" onclick="showConnPopup()" title="Инструкция подключения">📡</button>
       <button class="btn btn-primary btn-icon" onclick="openSettings()"  title="Настройки">⚙</button>
       <button class="theme-btn" onclick="toggleTheme()" id="theme-btn" title="Тема">🌙</button>
-      <div class="update-info">Данные: <span id="h-time">—</span></div>
+      <div class="update-info"><span id="data-label">Данные:</span> <span id="h-time">—</span></div>
       <button class="btn btn-primary" onclick="refresh()">↻</button>
     </div>
   </div>
 
   <!-- Cards -->
   <div class="cards-row" id="cards-row"></div>
+<!-- Repair panel -->
+  <div class="block mb">
+    <div class="block-head"><div class="block-title"><span id="repair-title">⚙ Панель управления и диагностики</span></div></div>
+    <div class="block-body">
+      <div class="grid-rep">
+        <div>
+          <div id="service-control-label" style="font-size:.6rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px;font-weight:700">Управление сервисами</div>
+          <div class="repair-btn-row">
+            <button class="btn btn-warn"    onclick="doAction('makestep','repair-output')" id="btn-makestep">⏱ Принудительная синхронизация</button>
+            <button class="btn btn-primary" onclick="doAction('restart_gpsd','repair-output')" id="btn-restart-gpsd">↺ gpsd</button>
+            <button class="btn btn-primary" onclick="doAction('restart_chrony','repair-output')" id="btn-restart-chrony">↺ chrony</button>
+          </div>
+          <div id="repair-output" class="repair-output">Готов к работе...</div>
+        </div>
+        <div>
+          <div id="uart-diag-label" style="font-size:.6rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px;font-weight:700">Диагностика UART</div>
+          <div class="repair-btn-row">
+            <button class="btn btn-green"   onclick="doAction('raw_port','port-output')" id="btn-raw-nmea">📡 Сырые данные NMEA</button>
+            <button class="btn btn-primary" onclick="doAction('port_info','port-output')" id="btn-port-info">ℹ Параметры порта</button>
+          </div>
+          <div id="port-output" class="repair-output">Готов к работе...</div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Top: Sources + GPS + Skyview -->
   <div class="grid-top">
     <div class="block">
       <div class="block-head">
-        <div class="block-title"><span class="status-dot dot-off" id="sd-sources"></span>Источники времени</div>
+        <div class="block-title"><span class="status-dot dot-off" id="sd-sources"></span><span id="sources-title">Источники времени</span></div>
         <span class="block-badge" id="bb-sources">—</span>
       </div>
       <div class="block-body scroll" id="body-sources"><div class="err-msg">Загрузка...</div></div>
     </div>
     <div class="block">
       <div class="block-head">
-        <div class="block-title"><span class="status-dot dot-off" id="sd-gps"></span>GPS / GNSS</div>
+        <div class="block-title"><span class="status-dot dot-off" id="sd-gps"></span><span id="gps-title">GPS / GNSS</span></div>
         <span class="block-badge" id="bb-gps">—</span>
       </div>
       <div class="block-body" id="body-gps"><div class="err-msg">Загрузка...</div></div>
     </div>
     <div class="block">
       <div class="block-head">
-        <div class="block-title">Карта неба</div>
+        <div class="block-title"><span id="skyview-title">Карта неба</span></div>
         <span class="block-badge" id="bb-skyview">—</span>
       </div>
       <div class="block-body" id="body-skyview" style="display:flex;flex-direction:column;align-items:center;padding:8px">
@@ -107,7 +132,7 @@
   <!-- SNR Histogram -->
   <div class="block mb">
     <div class="block-head">
-      <div class="block-title">Уровень сигнала спутников (SNR dBHz)</div>
+      <div class="block-title"><span id="snr-title">Уровень сигнала спутников (SNR dBHz)</span></div>
       <span class="block-badge" id="bb-snr">—</span>
     </div>
     <div class="block-body" id="body-snr" style="overflow-x:auto;padding:10px 13px">
@@ -118,22 +143,22 @@
   <!-- Mid: Sync + GNSS + Clients + System (equal width) -->
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:13px;margin-bottom:13px" id="grid-mid">
     <div class="block">
-      <div class="block-head"><div class="block-title">Синхронизация</div></div>
+      <div class="block-head"><div class="block-title"><span id="tracking-title">Синхронизация</span></div></div>
       <div class="block-body" id="body-tracking"><div class="err-msg">Загрузка...</div></div>
     </div>
     <div class="block">
-      <div class="block-head"><div class="block-title">GNSS модуль</div></div>
+      <div class="block-head"><div class="block-title"><span id="gnss-title">GNSS модуль</span></div></div>
       <div class="block-body" id="body-gnss"><div class="err-msg">Загрузка...</div></div>
     </div>
     <div class="block">
       <div class="block-head">
-        <div class="block-title">Клиенты NTP</div>
+        <div class="block-title"><span id="clients-title">Клиенты NTP</span></div>
         <span class="block-badge" id="bb-clients">—</span>
       </div>
       <div class="block-body scroll" id="body-clients"><div class="err-msg">Загрузка...</div></div>
     </div>
     <div class="block">
-      <div class="block-head"><div class="block-title">Система</div></div>
+      <div class="block-head"><div class="block-title"><span id="system-title">Система</span></div></div>
       <div class="block-body" id="body-system"><div class="err-msg">Загрузка...</div></div>
     </div>
   </div>
@@ -142,14 +167,14 @@
   <div style="display:grid;grid-template-columns:2fr 1fr;gap:13px;margin-bottom:13px">
     <div class="block">
       <div class="block-head">
-        <div class="block-title">График смещения времени — System Offset</div>
+        <div class="block-title"><span id="chart-title">График смещения времени — System Offset</span></div>
         <span class="block-badge" id="bb-chart">—</span>
       </div>
       <div class="block-body"><canvas id="offset-canvas"></canvas></div>
     </div>
     <div class="block">
       <div class="block-head">
-        <div class="block-title">Местоположение (OpenStreetMap)</div>
+        <div class="block-title"><span id="map-title">Местоположение (OpenStreetMap)</span></div>
         <span class="block-badge" id="bb-map">—</span>
       </div>
       <div class="block-body" style="padding:0">
@@ -160,40 +185,15 @@
 
   <!-- Sourcestats -->
   <div class="block mb">
-    <div class="block-head"><div class="block-title">Статистика источников (sourcestats)</div></div>
+    <div class="block-head"><div class="block-title"><span id="sourcestats-title">Статистика источников (sourcestats)</span></div></div>
     <div class="block-body scroll" id="body-sourcestats"><div class="err-msg">Загрузка...</div></div>
   </div>
 
-  <!-- Repair panel -->
-  <div class="block mb">
-    <div class="block-head"><div class="block-title">⚙ Панель управления и диагностики</div></div>
-    <div class="block-body">
-      <div class="grid-rep">
-        <div>
-          <div style="font-size:.6rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px;font-weight:700">Управление сервисами</div>
-          <div class="repair-btn-row">
-            <button class="btn btn-warn"    onclick="doAction('makestep','repair-output')">⏱ Принудительная синхронизация</button>
-            <button class="btn btn-primary" onclick="doAction('restart_gpsd','repair-output')">↺ gpsd</button>
-            <button class="btn btn-primary" onclick="doAction('restart_chrony','repair-output')">↺ chrony</button>
-          </div>
-          <div id="repair-output" class="repair-output">Готов к работе...</div>
-        </div>
-        <div>
-          <div style="font-size:.6rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px;font-weight:700">Диагностика UART</div>
-          <div class="repair-btn-row">
-            <button class="btn btn-green"   onclick="doAction('raw_port','port-output')">📡 Сырые данные NMEA</button>
-            <button class="btn btn-primary" onclick="doAction('port_info','port-output')">ℹ Параметры порта</button>
-          </div>
-          <div id="port-output" class="repair-output">Готов к работе...</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
+  
   <!-- Footer -->
   <div style="text-align:center;padding:12px 0;border-top:1px solid var(--border);margin-top:8px">
     <a href="https://github.com/NoIDXMV6/chrony-ublox-M10" target="_blank"
-       style="font-family:var(--mono);font-size:.68rem;color:var(--text3);text-decoration:none">
+       style="font-family:var(--mono);font-size:.68rem;color:var(--text3);text-decoration:none" id="footer-link">
       ⭐ github.com/NoIDXMV6/chrony-ublox-M10
     </a>
   </div>

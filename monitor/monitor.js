@@ -6,6 +6,140 @@
 'use strict';
 
 // ══════════════════════════════════════════════════════════════
+// Заглушка t, чтобы избежать "t is not a function"
+// ══════════════════════════════════════════════════════════════
+let t = function(key, fallback) {
+    return fallback || key;
+};
+
+// ══════════════════════════════════════════════════════════════
+// i18n
+// ══════════════════════════════════════════════════════════════
+
+let i18n = {};
+let currentLang = 'ru';
+const DEFAULT_LANG = 'ru';
+
+async function loadLocale(langCode) {
+  try {
+    let config;
+    try {
+      const resp = await fetch('config.json');
+      config = await resp.json();
+    } catch(e) {
+      console.warn('Cannot load config.json, using default languages');
+      config = {
+        languages: {
+          ru: { file: 'ru_locale.txt' },
+          en: { file: 'en_locale.txt' }
+        }
+      };
+    }
+
+    // Инициализируем селектор языка (один раз после загрузки конфига)
+    initLangSelector(config);
+
+    const lang = config.languages ? config.languages[langCode] : null;
+    if (!lang) {
+      console.warn(`Language ${langCode} not found, falling back to ${DEFAULT_LANG}`);
+      return loadLocale(DEFAULT_LANG);
+    }
+    const resp = await fetch(lang.file);
+    if (!resp.ok) throw new Error(`Failed to load locale file: ${resp.status}`);
+    i18n = await resp.json();
+    currentLang = langCode;
+    localStorage.setItem('ntp_lang', langCode);
+
+    // Заменяем заглушку на реальную функцию перевода
+    t = function(key, fallback) {
+        const parts = key.split('.');
+        let val = i18n;
+        for (const p of parts) {
+            if (val == null || typeof val !== 'object') return fallback || key;
+            val = val[p];
+        }
+        return val !== undefined ? val : (fallback || key);
+    };
+
+    // Обновляем селектор после загрузки языка (если он уже существует)
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.value = currentLang;
+
+    return true;
+  } catch(e) {
+    console.error('loadLocale error:', e);
+    return false;
+  }
+}
+
+async function initLanguage() {
+  const savedLang = localStorage.getItem('ntp_lang') || DEFAULT_LANG;
+  await loadLocale(savedLang);
+  document.title = t('header.title', 'NTP Monitor');
+  updateStaticTexts();
+}
+
+function updateStaticTexts() {
+  const dataLabel = document.getElementById('data-label');
+  if (dataLabel) dataLabel.textContent = t('header.data_label', 'Данные:') + ' ';
+  const loaderText = document.getElementById('loader-text');
+  if (loaderText) loaderText.textContent = t('loader', 'Инициализация...');
+}
+
+// ══════════════════════════════════════════════════════════════
+// Динамическое создание переключателя языка из config.json
+// ══════════════════════════════════════════════════════════════
+
+function initLangSelector(config) {
+    const languages = config?.languages;
+    if (!languages || Object.keys(languages).length === 0) {
+        console.warn('No languages defined in config.json');
+        return;
+    }
+
+    // Удаляем старый селектор, если был
+    const oldContainer = document.getElementById('lang-container');
+    if (oldContainer) oldContainer.remove();
+
+    // Создаём контейнер
+    const container = document.createElement('div');
+    container.id = 'lang-container';
+
+    // Создаём select
+    const select = document.createElement('select');
+    select.className = 'lang-select';
+    select.title = 'Язык';
+
+    // Наполняем опциями из конфига
+    for (const [code, lang] of Object.entries(languages)) {
+        const option = document.createElement('option');
+        option.value = code;
+        option.textContent = lang.name || code;
+        if (code === currentLang) option.selected = true;
+        select.appendChild(option);
+    }
+
+    // Обработчик смены языка
+    select.addEventListener('change', function() {
+        changeLanguage(this.value);
+    });
+
+    container.appendChild(select);
+    document.body.appendChild(container);
+}
+
+async function changeLanguage(langCode) {
+  const success = await loadLocale(langCode);
+  if (success) {
+    updateStaticTexts();
+    refresh();
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.value = langCode;
+    document.title = t('header.title', 'NTP Monitor');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
 // Константы и состояние
 // ══════════════════════════════════════════════════════════════
 
@@ -19,7 +153,7 @@ const state = {
   leafletMarker: null,
   theme        : 'dark',
   mode         : 'time',
-  server       : { ip:'', hostname:'', ntp_port:123, ser2_port:2947 },
+  server       : { ip:'', hostname:'', ntp_port:123, ser2_port:2947, ser2_baudrate:9600, baudrate_options:[4800,9600,19200,38400,57600,115200] },
   lastSats     : [],
   firstLoad    : true,
 };
@@ -65,7 +199,7 @@ function applyTheme(t) {
   state.theme = t;
   document.documentElement.setAttribute('data-theme', t);
   const btn = $('theme-btn');
-  if (btn) btn.textContent = (t === 'dark') ? '☀️' : '🌙';
+  if (btn) btn.textContent = t === 'dark' ? '☀️' : '🌙';
   localStorage.setItem('ntp_theme', t);
   if (state.leafletMap) setTimeout(() => state.leafletMap.invalidateSize(), 100);
   if (state.lastSats.length) renderSkyview(state.lastSats);
@@ -76,7 +210,7 @@ function toggleTheme() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// Часы
+// Часы (с локализацией дней недели/месяцев)
 // ══════════════════════════════════════════════════════════════
 
 function tickClock() {
@@ -89,8 +223,11 @@ function tickClock() {
   if (ct) ct.textContent = `${p2(n.getHours())}:${p2(n.getMinutes())}:${p2(n.getSeconds())}`;
   if (cm) cm.textContent = `.${p3(n.getMilliseconds())}`;
   if (cd) {
-    const days = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
-    const mons = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+    const isRu = currentLang === 'ru';
+    const days = isRu ? ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'] :
+                        ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const mons = isRu ? ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'] :
+                        ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const tz   = n.getTimezoneOffset();
     cd.textContent = `${days[n.getDay()]}, ${n.getDate()} ${mons[n.getMonth()]} ${n.getFullYear()} · UTC${tz<=0?'+':''}${-tz/60}`;
   }
@@ -123,7 +260,14 @@ async function postJSON(url, body) {
 async function fetchServerInfo() {
   try {
     const d = await fetchJSON(`${ACTION}?action=server_info`);
-    if (d.success) state.server = d;
+    if (d.success) {
+      state.server.ip = d.ip;
+      state.server.hostname = d.hostname;
+      state.server.ntp_port = d.ntp_port;
+      state.server.ser2_port = d.ser2_port;
+      state.server.ser2_baudrate = d.ser2_baudrate || 9600;
+      state.server.baudrate_options = d.baudrate_options || [4800, 9600, 19200, 38400, 57600, 115200];
+    }
   } catch(e) { console.warn('fetchServerInfo:', e); }
 }
 
@@ -132,10 +276,21 @@ async function fetchTelegramStatus() {
     const d  = await fetchJSON(`${ACTION}?action=telegram_status`);
     const el = $('h-tg-status');
     if (!el) return;
-    el.textContent = d.enabled ? '✓ TG' : '';
+    el.textContent = d.enabled ? t('header.telegram_on', '✓ TG') : t('header.telegram_off', '');
     el.title       = d.enabled ? `Telegram включён, proxy: ${d.proxy}` : 'Telegram отключён';
     el.style.color = d.enabled ? 'var(--green)' : 'var(--text3)';
   } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════════════════
+// Вспомогательная функция: отображение ошибки на странице
+// ══════════════════════════════════════════════════════════════
+
+function showErrorOnPage(message) {
+  const errDiv = document.createElement('div');
+  errDiv.style.cssText = 'position:fixed;top:10px;left:10px;right:10px;z-index:9999;background:#ff4d6a;color:#fff;padding:10px;border-radius:6px;font-family:monospace;white-space:pre-wrap;';
+  errDiv.textContent = 'ОШИБКА: ' + message;
+  document.body.prepend(errDiv);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -147,12 +302,12 @@ function renderHeader(d) {
   const hn  = $('h-hostname');
   const ht  = $('h-time');
   const hs  = $('h-services');
-  if (hn) hn.textContent = sys.hostname || state.server.hostname || '—';
-  if (ht) ht.textContent = new Date().toLocaleTimeString('ru-RU');
+  if (hn) hn.textContent = sys.hostname || state.server.hostname || t('header.hostname', '—');
+  if (ht) ht.textContent = new Date().toLocaleTimeString(currentLang === 'ru' ? 'ru-RU' : 'en-US');
   if (hs) hs.innerHTML = [
-    { l:'chrony', on: sys.chrony_active },
-    { l:'gpsd',   on: sys.gpsd_active   },
-    { l:'PPS',    on: sys.pps_device    },
+    { l: t('header.services.chrony', 'chrony'), on: sys.chrony_active },
+    { l: t('header.services.gpsd', 'gpsd'),     on: sys.gpsd_active   },
+    { l: t('header.services.pps', 'PPS'),       on: sys.pps_device    },
   ].map(s =>
     `<div class="svc-pill ${s.on?'on':'off'}">` +
     `<span style="width:6px;height:6px;border-radius:50%;background:${s.on?'var(--green)':'var(--red)'};display:inline-block"></span>` +
@@ -179,14 +334,14 @@ function renderCards(d) {
   const baud = gps.uart_baud || (gps.module && gps.module.bps) || null;
 
   const cards = [
-    { l:'Stratum',    v: tr.stratum ?? '—',      u:'',    s: tr.reference_id ?? '',    c: tr.stratum==1?'good':'' },
-    { l:'Смещение',   v: so.v,                   u: so.u, s: 'от NTP времени',         c: sc },
-    { l:'RMS offset', v: ro.v,                   u: ro.u, s: 'скользящее среднее',     c: '' },
-    { l:'Частота',    v: parseFloat(tr.frequency||0).toFixed(3), u:'ppm', s:'дрейф',  c: '' },
-    { l:'Спутников',  v: sky.used!=null ? `${sky.used}/${sky.total}` : '—', u:'', s:'исп./видимых', c: sky.used>4?'good':sky.used>0?'warn':'' },
-    { l:'Онлайн',     v: act.online ?? '—',      u:'',    s: `оффлайн: ${act.offline??'—'}`, c: act.online>0?'good':'error' },
-    { l:'UART',       v: baud ?? '—',             u: baud?'bps':'', s:'/dev/ttyAMA0',  c: baud?'good':'' },
-    { l:'Leap',       v: tr.leap_status ?? '—',  u:'',    s:'',                        c: tr.leap_status==='Normal'?'good':'warn' },
+    { l: t('cards.stratum', 'Stratum'), v: tr.stratum ?? '—', u:'', s: tr.reference_id ?? '', c: tr.stratum==1?'good':'' },
+    { l: t('cards.offset', 'Смещение'), v: so.v, u: so.u, s: t('cards.offset_desc', 'от NTP времени'), c: sc },
+    { l: t('cards.rms_offset', 'RMS offset'), v: ro.v, u: ro.u, s: t('cards.rms_desc', 'скользящее среднее'), c: '' },
+    { l: t('cards.frequency', 'Частота'), v: parseFloat(tr.frequency||0).toFixed(3), u: t('cards.unit_ppm', 'ppm'), s: t('cards.freq_desc', 'дрейф'), c: '' },
+    { l: t('cards.satellites', 'Спутников'), v: sky.used!=null ? `${sky.used}/${sky.total}` : '—', u:'', s: t('cards.sat_desc', 'исп./видимых'), c: sky.used>4?'good':sky.used>0?'warn':'' },
+    { l: t('cards.online', 'Онлайн'), v: act.online ?? '—', u:'', s: (t('cards.online_desc_offline', 'оффлайн') + ': ' + (act.offline??'—')), c: act.online>0?'good':'error' },
+    { l: t('cards.uart', 'UART'), v: baud ?? '—', u: baud ? t('cards.unit_bps', 'bps') : '', s: t('cards.uart_desc', '/dev/ttyAMA0'), c: baud?'good':'' },
+    { l: t('cards.leap', 'Leap'), v: tr.leap_status ?? '—', u:'', s:'', c: tr.leap_status==='Normal'?'good':'warn' },
   ];
 
   const el = $('cards-row');
@@ -212,16 +367,16 @@ function renderSources(d) {
   if (dot) dot.className = 'status-dot ' + (cls==='good'?'dot-good':cls==='warn'?'dot-warn':'dot-error');
 
   const bb = $('bb-sources');
-  if (bb) { bb.textContent = src.status==='good'?'OK':src.status==='warning'?'WARN':'ERR'; bb.className = 'block-badge '+cls; }
+  if (bb) { bb.textContent = src.status==='good' ? t('sources.ok', 'OK') : (src.status==='warning' ? t('sources.warn', 'WARN') : t('sources.err', 'ERR')); bb.className = 'block-badge '+cls; }
 
   const body = $('body-sources');
   if (!body) return;
 
-  if (!list.length) { body.innerHTML = '<div class="err-msg">Нет источников</div>'; return; }
+  if (!list.length) { body.innerHTML = '<div class="err-msg">' + t('sources.no_sources', 'Нет источников') + '</div>'; return; }
 
   body.innerHTML =
     `<table class="tbl"><thead><tr>` +
-    `<th></th><th>Источник</th><th>Str</th><th>Poll</th><th>Reach</th><th>Last</th><th>Смещение</th>` +
+    `<th></th><th>${t('sources.title', 'Источник')}</th><th>Str</th><th>Poll</th><th>Reach</th><th>Last</th><th>${t('cards.offset', 'Смещение')}</th>` +
     `</tr></thead><tbody>` +
     list.map(s =>
       `<tr>` +
@@ -248,7 +403,7 @@ function renderGps(d) {
   if (!gps.available) {
     if (dot)  dot.className = 'status-dot dot-off';
     if (bb)   { bb.textContent = 'N/A'; bb.className = 'block-badge'; }
-    if (body) body.innerHTML = '<div class="err-msg">gpsd недоступен</div>';
+    if (body) body.innerHTML = '<div class="err-msg">' + t('gps.gpsd_unavailable', 'gpsd недоступен') + '</div>';
     state.lastSats = [];
     renderSkyview([]); renderSnrHistogram([]); renderMap(null, null);
     return;
@@ -263,20 +418,26 @@ function renderGps(d) {
   state.lastSats = sats;
 
   if (dot)  dot.className  = 'status-dot ' + (mode===3?'dot-good':mode===2?'dot-warn':'dot-error');
-  if (bb)   { bb.textContent = fix.mode_label || '—'; bb.className = 'block-badge '+(mode===3?'good':mode===2?'warn':'error'); }
+  if (bb)   { bb.textContent = t('gps.mode_' + (mode===3?'3d':mode===2?'2d':mode===1?'no_fix':'no_data'), fix.mode_label || '—'); bb.className = 'block-badge '+(mode===3?'good':mode===2?'warn':'error'); }
 
+  const modeLabels = {
+    0: t('gps.mode_no_data', 'Нет данных'),
+    1: t('gps.mode_no_fix', 'Нет фикса'),
+    2: t('gps.mode_2d', '2D фикс'),
+    3: t('gps.mode_3d', '3D фикс')
+  };
   const used = sats.filter(s => s.used).length;
   if (body) body.innerHTML =
     `<div class="kv-list">` +
-    `<div class="kv-row"><span class="kv-key">Фикс</span><span class="kv-val ${mode===3?'good':mode===2?'warn':'error'}">${h(fix.mode_label)}</span></div>` +
-    (fix.lat!=null ? `<div class="kv-row"><span class="kv-key">Широта</span><span class="kv-val accent">${fix.lat}°</span></div>` : '') +
-    (fix.lon!=null ? `<div class="kv-row"><span class="kv-key">Долгота</span><span class="kv-val accent">${fix.lon}°</span></div>` : '') +
-    (fix.alt!=null ? `<div class="kv-row"><span class="kv-key">Высота</span><span class="kv-val">${fix.alt} м</span></div>` : '') +
-    `<div class="kv-row"><span class="kv-key">UART</span><span class="kv-val ${baud?'good':''}">${baud??'—'}${baud?' bps':''}</span></div>` +
-    `<div class="kv-row"><span class="kv-key">PPS</span><span class="kv-val ${gps.pps?'good':'error'}">${gps.pps?'✓ /dev/pps0':'✗ нет'}</span></div>` +
-    (sky.hdop!=null ? `<div class="kv-row"><span class="kv-key">HDOP</span><span class="kv-val">${sky.hdop}</span></div>` : '') +
-    (sky.pdop!=null ? `<div class="kv-row"><span class="kv-key">PDOP</span><span class="kv-val">${sky.pdop}</span></div>` : '') +
-    `<div class="kv-row"><span class="kv-key">Спутников</span><span class="kv-val">${used} / ${sats.length}</span></div>` +
+    `<div class="kv-row"><span class="kv-key">${t('gps.fix', 'Фикс')}</span><span class="kv-val ${mode===3?'good':mode===2?'warn':'error'}">${modeLabels[mode] || t('gps.mode_unknown', 'Неизвестно')}</span></div>` +
+    (fix.lat!=null ? `<div class="kv-row"><span class="kv-key">${t('gps.latitude', 'Широта')}</span><span class="kv-val accent">${fix.lat}°</span></div>` : '') +
+    (fix.lon!=null ? `<div class="kv-row"><span class="kv-key">${t('gps.longitude', 'Долгота')}</span><span class="kv-val accent">${fix.lon}°</span></div>` : '') +
+    (fix.alt!=null ? `<div class="kv-row"><span class="kv-key">${t('gps.altitude', 'Высота')}</span><span class="kv-val">${fix.alt} м</span></div>` : '') +
+    `<div class="kv-row"><span class="kv-key">${t('gps.uart', 'UART')}</span><span class="kv-val ${baud?'good':''}">${baud??'—'}${baud?' bps':''}</span></div>` +
+    `<div class="kv-row"><span class="kv-key">${t('gps.pps', 'PPS')}</span><span class="kv-val ${gps.pps?'good':'error'}">${gps.pps ? t('gps.pps_yes', '✓ /dev/pps0') : t('gps.pps_no', '✗ нет')}</span></div>` +
+    (sky.hdop!=null ? `<div class="kv-row"><span class="kv-key">${t('gps.hdop', 'HDOP')}</span><span class="kv-val">${sky.hdop}</span></div>` : '') +
+    (sky.pdop!=null ? `<div class="kv-row"><span class="kv-key">${t('gps.pdop', 'PDOP')}</span><span class="kv-val">${sky.pdop}</span></div>` : '') +
+    `<div class="kv-row"><span class="kv-key">${t('gps.satellites', 'Спутников')}</span><span class="kv-val">${used} / ${sats.length}</span></div>` +
     `</div>`;
 
   renderSkyview(sats);
@@ -294,7 +455,7 @@ function renderGnss(d) {
   const body = $('body-gnss');
   if (!body) return;
 
-  if (!mod.driver) { body.innerHTML = '<div class="info-msg">Нет данных</div>'; return; }
+  if (!mod.driver) { body.innerHTML = '<div class="info-msg">' + t('gnss.no_data', 'Нет данных') + '</div>'; return; }
 
   const names = { GPS:'GPS', GLO:'GLONASS', GAL:'Galileo', BDS:'BeiDou', SBAS:'SBAS', QZSS:'QZSS' };
   const cls   = { GPS:'gps', GLO:'glo', GAL:'gal', BDS:'bds', SBAS:'sbas', QZSS:'sbas' };
@@ -303,19 +464,19 @@ function renderGnss(d) {
 
   body.innerHTML =
     `<div class="kv-list">` +
-    `<div class="kv-row"><span class="kv-key">Драйвер</span><span class="kv-val accent">${h(mod.driver)}</span></div>` +
-    (mod.firmware ? `<div class="kv-row"><span class="kv-key">Прошивка</span><span class="kv-val">${h(mod.firmware)}</span></div>` : '') +
-    (mod.fwver    ? `<div class="kv-row"><span class="kv-key">FW версия</span><span class="kv-val">${h(mod.fwver)}</span></div>` : '') +
-    (mod.protver  ? `<div class="kv-row"><span class="kv-key">Протокол</span><span class="kv-val">${h(mod.protver)}</span></div>` : '') +
-    (mod.hardware ? `<div class="kv-row"><span class="kv-key">HW версия</span><span class="kv-val">${h(mod.hardware)}</span></div>` : '') +
-    `<div class="kv-row"><span class="kv-key">Baudrate</span><span class="kv-val">${mod.bps||'—'} bps</span></div>` +
-    `<div class="kv-row"><span class="kv-key">Режим</span><span class="kv-val">${mod.native?'u-blox UBX':'NMEA'}</span></div>` +
+    `<div class="kv-row"><span class="kv-key">${t('gnss.driver', 'Драйвер')}</span><span class="kv-val accent">${h(mod.driver)}</span></div>` +
+    (mod.firmware ? `<div class="kv-row"><span class="kv-key">${t('gnss.firmware', 'Прошивка')}</span><span class="kv-val">${h(mod.firmware)}</span></div>` : '') +
+    (mod.fwver    ? `<div class="kv-row"><span class="kv-key">${t('gnss.fw_ver', 'FW версия')}</span><span class="kv-val">${h(mod.fwver)}</span></div>` : '') +
+    (mod.protver  ? `<div class="kv-row"><span class="kv-key">${t('gnss.protocol', 'Протокол')}</span><span class="kv-val">${h(mod.protver)}</span></div>` : '') +
+    (mod.hardware ? `<div class="kv-row"><span class="kv-key">${t('gnss.hw_ver', 'HW версия')}</span><span class="kv-val">${h(mod.hardware)}</span></div>` : '') +
+    `<div class="kv-row"><span class="kv-key">${t('gnss.baudrate', 'Baudrate')}</span><span class="kv-val">${mod.bps||'—'} bps</span></div>` +
+    `<div class="kv-row"><span class="kv-key">${t('gnss.mode', 'Режим')}</span><span class="kv-val">${mod.native ? t('gnss.mode_ubx', 'u-blox UBX') : t('gnss.mode_nmea', 'NMEA')}</span></div>` +
     `</div>` +
     (chips ? `<div class="gnss-chips">${chips}${aug}</div>` : '');
 }
 
 // ══════════════════════════════════════════════════════════════
-// Render: SNR Histogram
+// SNR Histogram
 // ══════════════════════════════════════════════════════════════
 
 function renderSnrHistogram(sats) {
@@ -325,7 +486,7 @@ function renderSnrHistogram(sats) {
 
   const filtered = (sats || []).filter(s => s.el != null);
   if (!filtered.length) {
-    el.innerHTML = '<div class="info-msg">Нет данных о спутниках</div>';
+    el.innerHTML = '<div class="info-msg">' + t('snr.no_data', 'Нет данных о спутниках') + '</div>';
     if (bb) { bb.textContent = '—'; bb.className = 'block-badge'; }
     return;
   }
@@ -390,12 +551,12 @@ function renderSnrHistogram(sats) {
     bars +
     `</div>` +
     `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:5px;font-family:var(--mono);font-size:.58rem;color:var(--text3)">` +
-    `<span><span style="color:hsl(190,80%,55%)">■</span> GPS</span>` +
-    `<span><span style="color:hsl(0,70%,55%)">■</span> ГЛОНАСС</span>` +
-    `<span><span style="color:hsl(140,70%,45%)">■</span> Galileo</span>` +
-    `<span><span style="color:hsl(45,80%,55%)">■</span> BeiDou</span>` +
-    `<span><span style="color:hsl(270,70%,65%)">■</span> SBAS</span>` +
-    `<span style="color:var(--text3)">Яркость = SNR · Тёмные = не используются</span>` +
+    `<span><span style="color:hsl(190,80%,55%)">■</span> ${t('snr.legend_gps', 'GPS')}</span>` +
+    `<span><span style="color:hsl(0,70%,55%)">■</span> ${t('snr.legend_glonass', 'ГЛОНАСС')}</span>` +
+    `<span><span style="color:hsl(140,70%,45%)">■</span> ${t('snr.legend_galileo', 'Galileo')}</span>` +
+    `<span><span style="color:hsl(45,80%,55%)">■</span> ${t('snr.legend_beidou', 'BeiDou')}</span>` +
+    `<span><span style="color:hsl(270,70%,65%)">■</span> ${t('snr.legend_sbas', 'SBAS')}</span>` +
+    `<span style="color:var(--text3)">${t('snr.legend_brightness', 'Яркость = SNR · Тёмные = не используются')}</span>` +
     `</div>`;
 }
 
@@ -489,7 +650,7 @@ function renderSkyview(sats) {
   }).join('');
 
   if (!sats || !sats.length) {
-    body.innerHTML = '<div class="err-msg">Нет данных</div>';
+    body.innerHTML = '<div class="err-msg">' + t('skyview.no_data', 'Нет данных') + '</div>';
     if (bb) { bb.textContent = '—'; bb.className = 'block-badge'; }
     return;
   }
@@ -504,12 +665,12 @@ function renderSkyview(sats) {
     rings + rads + comp + sats.map(satEl).join('') +
     `</svg>` +
     `<div class="sky-legend">` +
-    `<div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="hsl(190,80%,55%)"/></svg>GPS</div>` +
-    `<div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" fill="hsl(0,70%,55%)"/></svg>ГЛОНАСС</div>` +
-    `<div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 10 10"><polygon points="5,1 9,9 1,9" fill="hsl(140,70%,45%)"/></svg>Galileo▲</div>` +
-    `<div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 10 10"><polygon points="5,9 9,1 1,1" fill="hsl(45,80%,55%)"/></svg>BeiDou▼</div>` +
-    `<div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 10 10"><polygon points="5,1 9,5 5,9 1,5" fill="hsl(270,70%,65%)"/></svg>SBAS◇</div>` +
-    `<div class="sky-legend-item" style="color:var(--text3)">Яркость=SNR</div>` +
+    `<div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="hsl(190,80%,55%)"/></svg>${t('snr.legend_gps', 'GPS')}</div>` +
+    `<div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" fill="hsl(0,70%,55%)"/></svg>${t('snr.legend_glonass', 'ГЛОНАСС')}</div>` +
+    `<div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 10 10"><polygon points="5,1 9,9 1,9" fill="hsl(140,70%,45%)"/></svg>${t('snr.legend_galileo', 'Galileo')}▲</div>` +
+    `<div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 10 10"><polygon points="5,9 9,1 1,1" fill="hsl(45,80%,55%)"/></svg>${t('snr.legend_beidou', 'BeiDou')}▼</div>` +
+    `<div class="sky-legend-item"><svg class="sky-legend-shape" viewBox="0 0 10 10"><polygon points="5,1 9,5 5,9 1,5" fill="hsl(270,70%,65%)"/></svg>${t('snr.legend_sbas', 'SBAS')}◇</div>` +
+    `<div class="sky-legend-item" style="color:var(--text3)">${t('snr.legend_brightness', 'Яркость=SNR')}</div>` +
     `</div>`;
 }
 
@@ -524,8 +685,8 @@ function renderMap(lat, lon) {
 
   if (lat == null || lon == null) {
     if (state.leafletMap) { state.leafletMap.remove(); state.leafletMap = null; }
-    container.innerHTML = '<div class="info-msg" style="line-height:230px">Нет GPS фикса</div>';
-    if (bb) { bb.textContent = 'Нет фикса'; bb.className = 'block-badge'; }
+    container.innerHTML = `<div class="info-msg" style="line-height:230px">${t('map.no_fix', 'Нет GPS фикса')}</div>`;
+    if (bb) { bb.textContent = t('map.no_fix', 'Нет фикса'); bb.className = 'block-badge'; }
     return;
   }
 
@@ -569,16 +730,16 @@ function renderTracking(d) {
 
   body.innerHTML =
     `<div class="kv-list">` +
-    kv('Reference ID', tr.reference_id, 'accent') +
-    kv('Stratum', tr.stratum) +
-    kv('Ref time', tr.ref_time ? tr.ref_time.substring(0,19) : '—') +
-    kv('Смещение', tr.system_time_fmt, scls) +
-    kv('Last offset', tr.last_offset_fmt) +
-    kv('RMS offset', tr.rms_offset_fmt) +
-    kv('Частота', tr.frequency ? tr.frequency+' ppm' : '—') +
-    kv('Skew', tr.skew ? tr.skew+' ppm' : '—') +
-    kv('Root delay', tr.root_delay_fmt) +
-    kv('Leap', tr.leap_status, tr.leap_status==='Normal'?'good':'warn') +
+    kv(t('tracking.ref_id', 'Reference ID'), tr.reference_id, 'accent') +
+    kv(t('tracking.stratum', 'Stratum'), tr.stratum) +
+    kv(t('tracking.ref_time', 'Ref time'), tr.ref_time ? tr.ref_time.substring(0,19) : '—') +
+    kv(t('tracking.system_time', 'Смещение'), tr.system_time_fmt, scls) +
+    kv(t('tracking.last_offset', 'Last offset'), tr.last_offset_fmt) +
+    kv(t('tracking.rms_offset', 'RMS offset'), tr.rms_offset_fmt) +
+    kv(t('tracking.frequency', 'Частота'), tr.frequency ? tr.frequency+' ppm' : '—') +
+    kv(t('tracking.skew', 'Skew'), tr.skew ? tr.skew+' ppm' : '—') +
+    kv(t('tracking.root_delay', 'Root delay'), tr.root_delay_fmt) +
+    kv(t('tracking.leap', 'Leap'), tr.leap_status, tr.leap_status==='Normal'?'good':'warn') +
     `</div>`;
 }
 
@@ -593,10 +754,11 @@ function renderClients(d) {
   if (!body) return;
 
   if (bb) { bb.textContent = list.length + ' клиент' + (list.length===1?'':'ов'); bb.className = 'block-badge '+(list.length>0?'good':''); }
-  if (!list.length) { body.innerHTML = '<div class="info-msg">Нет активных клиентов</div>'; return; }
+  if (!list.length) { body.innerHTML = '<div class="info-msg">' + t('clients.no_clients', 'Нет активных клиентов') + '</div>'; return; }
 
   body.innerHTML =
-    `<table class="tbl"><thead><tr><th>Хост</th><th>NTP</th><th>Drop</th><th>Last</th></tr></thead><tbody>` +
+    `<table class="tbl"><thead><tr>` +
+    `<th>${t('clients.host', 'Хост')}</th><th>${t('clients.ntp', 'NTP')}</th><th>${t('clients.drop', 'Drop')}</th><th>${t('clients.last', 'Last')}</th></tr></thead><tbody>` +
     list.map(c =>
       `<tr>` +
       `<td style="color:var(--text);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(c.hostname)}">${h(c.hostname)}</td>` +
@@ -620,22 +782,22 @@ function renderSystem(d) {
   const body = $('body-system');
   if (!body) return;
 
-  const t  = sys.temp;
-  const tc = t > 75 ? 'error' : t > 60 ? 'warn' : 'good';
+  const sysTemp = sys.temp;
+  const tc = sysTemp > 75 ? 'error' : sysTemp > 60 ? 'warn' : 'good';
   const mp = mem.percent || 0;
   const mc = mp > 90 ? 'error' : mp > 75 ? 'warn' : 'good';
 
   body.innerHTML =
     `<div class="kv-list">` +
-    `<div class="kv-row"><span class="kv-key">Uptime</span><span class="kv-val">${h(sys.uptime)}</span></div>` +
-    (t!=null ? `<div class="kv-row"><span class="kv-key">Температура</span><span class="kv-val ${tc}">${t} °C</span></div><div class="progress-wrap"><div class="progress-bar ${t>75?'hot':t>60?'warm':''}" style="width:${Math.min(t,100)}%"></div></div>` : '') +
-    (mem.percent!=null ? `<div class="kv-row" style="margin-top:4px"><span class="kv-key">RAM</span><span class="kv-val ${mc}">${mp}%</span></div><div class="progress-wrap"><div class="progress-bar ${mc}" style="width:${mp}%"></div></div>` : '') +
-    `<div class="kv-row" style="margin-top:4px"><span class="kv-key">Load</span><span class="kv-val">${load.map(l=>l.toFixed(2)).join(' ')}</span></div>` +
-    `<div class="kv-row"><span class="kv-key">chrony</span><span class="kv-val ${sys.chrony_active?'good':'error'}">${sys.chrony_active?'active':'stopped'}</span></div>` +
-    `<div class="kv-row"><span class="kv-key">gpsd</span><span class="kv-val ${sys.gpsd_active?'good':'error'}">${sys.gpsd_active?'active':'stopped'}</span></div>` +
-    `<div class="kv-row"><span class="kv-key">/dev/pps0</span><span class="kv-val ${sys.pps_device?'good':'error'}">${sys.pps_device?'✓':'✗'}</span></div>` +
-    `<div class="kv-row"><span class="kv-key">/dev/ttyAMA0</span><span class="kv-val ${sys.uart_device?'good':'error'}">${sys.uart_device?'✓':'✗'}</span></div>` +
-    (ss.packets_received!=null ? `<div class="kv-row"><span class="kv-key">NTP пакетов</span><span class="kv-val">${ss.packets_received}</span></div>` : '') +
+    `<div class="kv-row"><span class="kv-key">${t('system.uptime', 'Uptime')}</span><span class="kv-val">${h(sys.uptime)}</span></div>` +
+    (sysTemp != null ? `<div class="kv-row"><span class="kv-key">${t('system.temp', 'Температура')}</span><span class="kv-val ${tc}">${sysTemp} °C</span></div><div class="progress-wrap"><div class="progress-bar ${sysTemp>75?'hot':sysTemp>60?'warm':''}" style="width:${Math.min(sysTemp,100)}%"></div></div>` : '') +
+    (mem.percent!=null ? `<div class="kv-row" style="margin-top:4px"><span class="kv-key">${t('system.ram', 'RAM')}</span><span class="kv-val ${mc}">${mp}%</span></div><div class="progress-wrap"><div class="progress-bar ${mc}" style="width:${mp}%"></div></div>` : '') +
+    `<div class="kv-row" style="margin-top:4px"><span class="kv-key">${t('system.load', 'Load')}</span><span class="kv-val">${load.map(l=>l.toFixed(2)).join(' ')}</span></div>` +
+    `<div class="kv-row"><span class="kv-key">${t('system.chrony', 'chrony')}</span><span class="kv-val ${sys.chrony_active?'good':'error'}">${sys.chrony_active ? t('system.active', 'active') : t('system.stopped', 'stopped')}</span></div>` +
+    `<div class="kv-row"><span class="kv-key">${t('system.gpsd', 'gpsd')}</span><span class="kv-val ${sys.gpsd_active?'good':'error'}">${sys.gpsd_active ? t('system.active', 'active') : t('system.stopped', 'stopped')}</span></div>` +
+    `<div class="kv-row"><span class="kv-key">${t('system.pps0', '/dev/pps0')}</span><span class="kv-val ${sys.pps_device?'good':'error'}">${sys.pps_device ? t('system.yes', '✓') : t('system.no', '✗')}</span></div>` +
+    `<div class="kv-row"><span class="kv-key">${t('system.ttyAMA0', '/dev/ttyAMA0')}</span><span class="kv-val ${sys.uart_device?'good':'error'}">${sys.uart_device ? t('system.yes', '✓') : t('system.no', '✗')}</span></div>` +
+    (ss.packets_received!=null ? `<div class="kv-row"><span class="kv-key">${t('system.ntp_packets', 'NTP пакетов')}</span><span class="kv-val">${ss.packets_received}</span></div>` : '') +
     `</div>`;
 }
 
@@ -648,11 +810,11 @@ function renderSourcestats(d) {
   const body = $('body-sourcestats');
   if (!body) return;
 
-  if (!list.length) { body.innerHTML = '<div class="info-msg">Нет данных</div>'; return; }
+  if (!list.length) { body.innerHTML = '<div class="info-msg">' + t('sourcestats.no_data', 'Нет данных') + '</div>'; return; }
 
   body.innerHTML =
     `<table class="tbl"><thead><tr>` +
-    `<th>Источник</th><th>NP</th><th>NR</th><th>Span</th><th>Freq (ppm)</th><th>Freq skew</th><th>Offset</th><th>Std Dev</th>` +
+    `<th>${t('sources.title', 'Источник')}</th><th>NP</th><th>NR</th><th>Span</th><th>Freq (ppm)</th><th>Freq skew</th><th>Offset</th><th>Std Dev</th>` +
     `</tr></thead><tbody>` +
     list.map(s =>
       `<tr><td style="color:var(--text)">${h(s.name)}</td><td>${h(s.np)}</td><td>${h(s.nr)}</td><td>${h(s.span)}</td><td>${h(s.frequency)}</td><td>${h(s.freq_skew)}</td><td>${h(s.offset)}</td><td>${h(s.std_dev)}</td></tr>`
@@ -755,13 +917,14 @@ async function showConnPopup() {
   const s2P    = data?.ser2_port|| state.server.ser2_port || 2947;
   const instrs = data?.instructions || {};
 
-  $('popup-title').textContent = mode === 'ucenter'
-    ? `u-center (ser2net) · tcp://${ip}:${s2P}`
-    : `NTP сервер · ${ip} (${host}) · UDP ${ntpP}`;
+  const popupTitle = $('popup-title');
+  if (popupTitle) popupTitle.textContent = mode === 'ucenter'
+    ? t('popup_conn.title_ucenter', 'Подключение u-center (ser2net)')
+    : t('popup_conn.title_ntp', 'Подключение к NTP серверу');
 
   const tabs = Object.keys(instrs);
   if (!tabs.length) {
-    $('popup-body').innerHTML = '<div class="info-msg">Инструкции не настроены в config.json</div>';
+    $('popup-body').innerHTML = '<div class="info-msg">' + t('popup_conn.placeholder', 'Инструкции не настроены в config.json') + '</div>';
     $('conn-popup').classList.add('open');
     return;
   }
@@ -802,32 +965,32 @@ async function openSettings() {
   $('settings-body').innerHTML = `
     <div style="display:flex;flex-direction:column;gap:16px">
       <div>
-        <div style="font-size:.63rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Тема</div>
+        <div style="font-size:.63rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">${t('popup_settings.theme', 'Тема')}</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="applyTheme('dark');localStorage.setItem('ntp_theme','dark')">🌙 Тёмная</button>
-          <button class="btn btn-primary" onclick="applyTheme('light');localStorage.setItem('ntp_theme','light')">☀️ Светлая</button>
-          <button class="btn btn-warn"    onclick="localStorage.removeItem('ntp_theme');applyTheme(new Date().getHours()>=7&&new Date().getHours()<20?'light':'dark')">🕐 Авто</button>
+          <button class="btn btn-primary" onclick="applyTheme('dark');localStorage.setItem('ntp_theme','dark')">${t('popup_settings.theme_dark', '🌙 Тёмная')}</button>
+          <button class="btn btn-primary" onclick="applyTheme('light');localStorage.setItem('ntp_theme','light')">${t('popup_settings.theme_light', '☀️ Светлая')}</button>
+          <button class="btn btn-warn"    onclick="localStorage.removeItem('ntp_theme');applyTheme(new Date().getHours()>=7&&new Date().getHours()<20?'light':'dark')">${t('popup_settings.theme_auto', '🕐 Авто')}</button>
         </div>
       </div>
       <div>
-        <div style="font-size:.63rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Интервал обновления</div>
+        <div style="font-size:.63rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">${t('popup_settings.refresh_interval', 'Интервал обновления')}</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           ${[10,15,30,60].map(s=>`<button class="btn btn-primary" onclick="setRefreshInterval(${s})">${s} с</button>`).join('')}
         </div>
       </div>
       <div>
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-          <div style="font-size:.63rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.08em">config.json</div>
+          <div style="font-size:.63rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.08em">${t('popup_settings.config_label', 'config.json')}</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn btn-green"   onclick="saveConfig()">💾 Сохранить</button>
-            <button class="btn btn-primary" onclick="testTelegram()">📨 Тест Telegram</button>
+            <button class="btn btn-green"   onclick="saveConfig()">${t('popup_settings.btn_save', '💾 Сохранить')}</button>
+            <button class="btn btn-primary" onclick="testTelegram()">${t('popup_settings.btn_telegram_test', '📨 Тест Telegram')}</button>
           </div>
         </div>
         <textarea id="config-editor" style="width:100%;height:300px;font-family:var(--mono);font-size:.65rem;background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:10px;resize:vertical;outline:none;tab-size:2">${h(configRaw)}</textarea>
         <div id="config-status" style="font-family:var(--mono);font-size:.63rem;margin-top:5px;min-height:16px"></div>
       </div>
       <div id="tg-test-result" style="display:none">
-        <div style="font-size:.63rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px">Ответ Telegram</div>
+        <div style="font-size:.63rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px">${t('popup_settings.telegram_response', 'Ответ Telegram')}</div>
         <div id="tg-test-output" class="repair-output"></div>
       </div>
     </div>`;
@@ -840,13 +1003,13 @@ async function saveConfig() {
   const status = $('config-status');
   if (!raw || !status) return;
   try { JSON.parse(raw); } catch(e) {
-    status.style.color = 'var(--red)'; status.textContent = 'Ошибка JSON: ' + e.message; return;
+    status.style.color = 'var(--red)'; status.textContent = t('popup_settings.json_error', 'Ошибка JSON: ') + e.message; return;
   }
   try {
     const d = await postJSON(`${ACTION}?action=config_write`, raw);
     status.style.color  = d.success ? 'var(--green)' : 'var(--red)';
-    status.textContent  = d.output || (d.success ? 'Сохранено' : 'Ошибка');
-  } catch(e) { status.style.color = 'var(--red)'; status.textContent = 'Ошибка: ' + e.message; }
+    status.textContent  = d.output || (d.success ? t('popup_settings.saved', 'Сохранено') : t('popup_settings.error', 'Ошибка'));
+  } catch(e) { status.style.color = 'var(--red)'; status.textContent = t('popup_settings.error', 'Ошибка') + ': ' + e.message; }
 }
 
 async function testTelegram() {
@@ -885,7 +1048,7 @@ async function switchMode(mode) {
     if (baud === null) return; // отмена
   }
 
-  if (out) { out.className = 'repair-output'; out.innerHTML = '<span class="spinner"></span>Переключение...'; }
+  if (out) { out.className = 'repair-output'; out.innerHTML = '<span class="spinner"></span>' + t('repair.switching', 'Переключение...'); }
   document.querySelectorAll('.btn').forEach(b => b.disabled = true);
 
   try {
@@ -896,7 +1059,7 @@ async function switchMode(mode) {
 
     if (d.auth_required) {
       _cachedPassword = null;
-      if (out) { out.textContent = 'Неверный пароль. Попробуйте снова.'; out.className = 'repair-output error-out'; }
+      if (out) { out.textContent = t('repair.error_auth', 'Неверный пароль. Попробуйте снова.'); out.className = 'repair-output error-out'; }
       document.querySelectorAll('.btn').forEach(b => b.disabled = false);
       return;
     }
@@ -910,9 +1073,9 @@ async function switchMode(mode) {
   } catch(e) {
     if (e.message && e.message.includes('401')) {
       _cachedPassword = null;
-      if (out) { out.textContent = 'Неверный пароль. Попробуйте снова.'; out.className = 'repair-output error-out'; }
+      if (out) { out.textContent = t('repair.error_auth', 'Неверный пароль. Попробуйте снова.'); out.className = 'repair-output error-out'; }
     } else {
-      if (out) { out.textContent = 'Ошибка соединения: ' + e.message; out.className = 'repair-output error-out'; }
+      if (out) { out.textContent = t('repair.error_connection', 'Ошибка соединения: ') + e.message; out.className = 'repair-output error-out'; }
     }
   }
 
@@ -931,10 +1094,10 @@ function updateModeUI(mode) {
   const bN  = $('btn-mode-ntp');
   const bU  = $('btn-mode-ucenter');
   if (mode === 'ucenter') {
-    if (mb) { mb.textContent = '📡 u-center'; mb.className = 'mode-badge ucenter'; }
+    if (mb) { mb.textContent = t('header.mode_ucenter', '📡 u-center'); mb.className = 'mode-badge ucenter'; }
     bN?.classList.remove('active'); bU?.classList.add('active');
   } else {
-    if (mb) { mb.textContent = '⏱ NTP'; mb.className = 'mode-badge ntp'; }
+    if (mb) { mb.textContent = t('header.mode_ntp', '⏱ NTP'); mb.className = 'mode-badge ntp'; }
     bN?.classList.add('active'); bU?.classList.remove('active');
   }
 }
@@ -956,7 +1119,7 @@ async function doAction(action, outId) {
   }
   
   el.className = 'repair-output'; 
-  el.innerHTML = '<span class="spinner"></span>Выполняется...';
+  el.innerHTML = '<span class="spinner"></span>' + t('repair.executing', 'Выполняется...');
   document.querySelectorAll('.btn').forEach(b => b.disabled = true);
   
   try {
@@ -967,7 +1130,7 @@ async function doAction(action, outId) {
     
     if (d.auth_required) {
       _cachedPassword = null;
-      el.textContent = 'Неверный пароль. Попробуйте снова.';
+      el.textContent = t('repair.error_auth', 'Неверный пароль. Попробуйте снова.');
       el.className = 'repair-output error-out';
       document.querySelectorAll('.btn').forEach(b => b.disabled = false);
       return;
@@ -978,10 +1141,10 @@ async function doAction(action, outId) {
   } catch(e) {
     if (e.message && e.message.includes('401')) {
       _cachedPassword = null;
-      el.textContent = 'Неверный пароль. Попробуйте снова.';
+      el.textContent = t('repair.error_auth', 'Неверный пароль. Попробуйте снова.');
       el.className = 'repair-output error-out';
     } else {
-      el.textContent = 'Ошибка соединения: ' + e.message;
+      el.textContent = t('repair.error_connection', 'Ошибка соединения: ') + e.message;
       el.className = 'repair-output error-out';
     }
   }
@@ -993,23 +1156,73 @@ async function doAction(action, outId) {
 // ══════════════════════════════════════════════════════════════
 
 function render(d) {
-  renderHeader(d);
-  renderCards(d);
-  renderSources(d);
-  renderGps(d);
-  renderGnss(d);
-  renderTracking(d);
-  renderClients(d);
-  renderSystem(d);
-  renderSourcestats(d);
-  addOffsetPoint(d.tracking || {});
-  renderChart();
+  try {
+    renderHeader(d);
+    renderCards(d);
+    renderSources(d);
+    renderGps(d);
+    renderGnss(d);
+    renderTracking(d);
+    renderClients(d);
+    renderSystem(d);
+    renderSourcestats(d);
+    addOffsetPoint(d.tracking || {});
+    renderChart();
+    
+    // Обновляем заголовки блоков, которые могли быть статическими
+    updateBlockTitles();
+  } catch (err) {
+    console.error('Render error:', err);
+    showErrorOnPage(err.message + '\n' + err.stack);
+  }
+}
+
+function updateBlockTitles() {
+  const titles = {
+    'sources-title': 'sources.title',
+    'gps-title': 'gps.title',
+    'skyview-title': 'skyview.title',
+    'snr-title': 'snr.title',
+    'tracking-title': 'tracking.title',
+    'gnss-title': 'gnss.title',
+    'clients-title': 'clients.title',
+    'system-title': 'system.title',
+    'sourcestats-title': 'sourcestats.title',
+    'chart-title': 'chart.title',
+    'repair-title': 'repair.title',
+    'service-control-label': 'repair.service_control',
+    'uart-diag-label': 'repair.uart_diag',
+    'btn-makestep': 'repair.btn_makestep',
+    'btn-restart-gpsd': 'repair.btn_restart_gpsd',
+    'btn-restart-chrony': 'repair.btn_restart_chrony',
+    'btn-raw-nmea': 'repair.btn_raw_nmea',
+    'btn-port-info': 'repair.btn_port_info',
+    'footer-link': 'footer'
+  };
+  for (const [id, key] of Object.entries(titles)) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = t(key, el.textContent);
+  }
+  // кнопка обновления в хедере
+  const refreshBtn = document.querySelector('.header-right .btn-primary:last-child');
+  if (refreshBtn) refreshBtn.textContent = t('header.refresh', '↻');
+  
+  // текст загрузки
+  const loaderText = document.getElementById('loader-text');
+  if (loaderText) loaderText.textContent = t('loader', 'Инициализация...');
 }
 
 async function refresh() {
   try {
     const d = await fetchJSON(API);
     render(d);
+  } catch(e) {
+    const ht = $('h-time');
+    if (ht) ht.textContent = t('repair.error_connection', 'Ошибка соединения');
+    console.warn('refresh error:', e);
+    showErrorOnPage(e.message);
+  } finally {
+    // Всегда скрываем лоадер после первой попытки
     if (state.firstLoad) {
       state.firstLoad = false;
       const loader = $('loader');
@@ -1017,10 +1230,6 @@ async function refresh() {
       const app = $('app');
       if (app) app.style.opacity = '1';
     }
-  } catch(e) {
-    const ht = $('h-time');
-    if (ht) ht.textContent = 'Ошибка соединения';
-    console.warn('refresh error:', e);
   }
 }
 
@@ -1048,17 +1257,17 @@ function showPasswordDialog() {
       <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:28px 24px 20px;width:min(380px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.5);animation:slideUp .25s ease;">
         <div style="text-align:center;margin-bottom:20px">
           <div style="font-size:2.5rem;margin-bottom:8px">🔐</div>
-          <div style="font-family:var(--mono);font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:4px">Подтверждение действия</div>
-          <div style="font-family:var(--mono);font-size:.6rem;color:var(--text3)">Введите пароль для выполнения операции</div>
+          <div style="font-family:var(--mono);font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:4px">${t('pwd_dialog.title', 'Подтверждение действия')}</div>
+          <div style="font-family:var(--mono);font-size:.6rem;color:var(--text3)">${t('pwd_dialog.message', 'Введите пароль для выполнения операции')}</div>
         </div>
         <div style="margin-bottom:16px;position:relative">
-          <input type="password" id="pwd-input" placeholder="Пароль" autofocus style="width:100%;font-family:var(--mono);font-size:.75rem;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:10px 40px 10px 14px;outline:none;transition:border-color .2s;box-sizing:border-box" onfocus="this.style.borderColor='var(--accent2)'" onblur="this.style.borderColor='var(--border2)'" onkeydown="if(event.key==='Enter')document.getElementById('pwd-ok').click()">
-          <button type="button" id="pwd-toggle" title="Показать пароль" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);cursor:pointer;font-size:.75rem;padding:4px;line-height:1">👁</button>
+          <input type="password" id="pwd-input" placeholder="${t('pwd_dialog.placeholder', 'Пароль')}" autofocus style="width:100%;font-family:var(--mono);font-size:.75rem;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:10px 40px 10px 14px;outline:none;transition:border-color .2s;box-sizing:border-box" onfocus="this.style.borderColor='var(--accent2)'" onblur="this.style.borderColor='var(--border2)'" onkeydown="if(event.key==='Enter')document.getElementById('pwd-ok').click()">
+          <button type="button" id="pwd-toggle" title="Показать пароль" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);cursor:pointer;font-size:.75rem;padding:4px;line-height:1">${t('pwd_dialog.show', '👁')}</button>
           <div id="pwd-error" style="font-family:var(--mono);font-size:.6rem;color:var(--red);margin-top:6px;min-height:16px"></div>
         </div>
         <div style="display:flex;gap:8px">
-          <button id="pwd-cancel" style="flex:1;font-family:var(--mono);font-size:.68rem;color:var(--text3);background:transparent;border:1px solid var(--border);border-radius:6px;padding:10px;cursor:pointer;transition:background .15s,color .15s">Отмена</button>
-          <button id="pwd-ok" style="flex:1;font-family:var(--mono);font-size:.68rem;color:#000;background:var(--accent);border:none;border-radius:6px;padding:10px;cursor:pointer;font-weight:600;transition:opacity .15s">Подтвердить</button>
+          <button id="pwd-cancel" style="flex:1;font-family:var(--mono);font-size:.68rem;color:var(--text3);background:transparent;border:1px solid var(--border);border-radius:6px;padding:10px;cursor:pointer;transition:background .15s,color .15s">${t('pwd_dialog.cancel', 'Отмена')}</button>
+          <button id="pwd-ok" style="flex:1;font-family:var(--mono);font-size:.68rem;color:#000;background:var(--accent);border:none;border-radius:6px;padding:10px;cursor:pointer;font-weight:600;transition:opacity .15s">${t('pwd_dialog.ok', 'Подтвердить')}</button>
         </div>
       </div>
       <style>@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}</style>
@@ -1076,7 +1285,7 @@ function showPasswordDialog() {
     toggleBtn.onclick = () => {
       pwdVisible = !pwdVisible;
       input.type = pwdVisible ? 'text' : 'password';
-      toggleBtn.textContent = pwdVisible ? '🙈' : '👁';
+      toggleBtn.textContent = pwdVisible ? t('pwd_dialog.hide', '🙈') : t('pwd_dialog.show', '👁');
     };
     
     const close = (result) => {
@@ -1089,7 +1298,7 @@ function showPasswordDialog() {
     okBtn.onclick = () => {
       const val = input.value.trim();
       if (!val) {
-        errorEl.textContent = 'Введите пароль';
+        errorEl.textContent = t('pwd_dialog.error_empty', 'Введите пароль');
         input.style.borderColor = 'var(--red)';
         setTimeout(() => input.style.borderColor = 'var(--border2)', 1500);
         return;
@@ -1125,15 +1334,15 @@ function showBaudrateDialog(defaultBaud, options) {
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);';
 
     const optionsHtml = options
-      .map(v => `<option value="${v}" ${v == defaultBaud ? 'selected' : ''}>${v} бод</option>`)
+      .map(v => `<option value="${v}" ${v == defaultBaud ? 'selected' : ''}>${v} ${t('baud_dialog.unit', 'бод')}</option>`)
       .join('');
 
     overlay.innerHTML = `
       <div class="modal-card" style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:28px 24px 20px;width:min(380px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.5);animation:slideUp .25s ease;">
         <div style="text-align:center;margin-bottom:20px">
           <div style="font-size:2.5rem;margin-bottom:8px">⚡</div>
-          <div style="font-family:var(--mono);font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:4px">Скорость порта для u‑center</div>
-          <div style="font-family:var(--mono);font-size:.6rem;color:var(--text3)">Выберите скорость соединения</div>
+          <div style="font-family:var(--mono);font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:4px">${t('baud_dialog.title', 'Скорость порта для u‑center')}</div>
+          <div style="font-family:var(--mono);font-size:.6rem;color:var(--text3)">${t('baud_dialog.message', 'Выберите скорость соединения')}</div>
         </div>
         <div style="margin-bottom:16px;">
           <select id="baud-select" style="width:100%;font-family:var(--mono);font-size:.75rem;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:10px 14px;outline:none;transition:border-color .2s;box-sizing:border-box;">
@@ -1141,8 +1350,8 @@ function showBaudrateDialog(defaultBaud, options) {
           </select>
         </div>
         <div style="display:flex;gap:8px">
-          <button id="baud-cancel" style="flex:1;font-family:var(--mono);font-size:.68rem;color:var(--text3);background:transparent;border:1px solid var(--border);border-radius:6px;padding:10px;cursor:pointer;transition:background .15s,color .15s">Отмена</button>
-          <button id="baud-ok" style="flex:1;font-family:var(--mono);font-size:.68rem;color:#000;background:var(--accent);border:none;border-radius:6px;padding:10px;cursor:pointer;font-weight:600;transition:opacity .15s">Подтвердить</button>
+          <button id="baud-cancel" style="flex:1;font-family:var(--mono);font-size:.68rem;color:var(--text3);background:transparent;border:1px solid var(--border);border-radius:6px;padding:10px;cursor:pointer;transition:background .15s,color .15s">${t('baud_dialog.cancel', 'Отмена')}</button>
+          <button id="baud-ok" style="flex:1;font-family:var(--mono);font-size:.68rem;color:#000;background:var(--accent);border:none;border-radius:6px;padding:10px;cursor:pointer;font-weight:600;transition:opacity .15s">${t('baud_dialog.ok', 'Подтвердить')}</button>
         </div>
       </div>
       <style>@keyframes fadeIn{from{opacity:0}to{opacity:1}} @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}</style>
@@ -1217,5 +1426,8 @@ document.addEventListener('DOMContentLoaded', () => {
   checkMode();
   fetchTelegramStatus();
   setInterval(fetchTelegramStatus, 60000);
-  refresh().then(startTimer);
+  
+  initLanguage().then(() => {
+    refresh().then(startTimer);
+  });
 });
