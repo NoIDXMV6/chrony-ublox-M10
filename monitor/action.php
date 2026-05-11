@@ -1,12 +1,31 @@
 <?php
 /**
  * NTP Monitor — action.php
- * API для управляющих действий: перезапуск, диагностика, Telegram, конфиг
+ * API для управляющих действий: перезапуск, диагностика, Telegram, конфиг.
+ * Все строки серверных сообщений теперь берутся из файлов локализации.
  */
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Access-Control-Allow-Origin: *');
+
+// ─── Загрузка языкового файла для серверных сообщений ────────────────────
+$lang = $_GET['lang'] ?? $_POST['lang'] ?? 'ru';
+$localeFile = __DIR__ . '/' . ($lang === 'en' ? 'en_locale.txt' : 'ru_locale.txt');
+$locale = [];
+if (file_exists($localeFile)) {
+    $locale = json_decode(file_get_contents($localeFile), true) ?? [];
+}
+
+// Функция для получения перевода серверного сообщения (плейсхолдеры как у sprintf)
+function __($key, ...$args) {
+    global $locale;
+    $msg = $locale['server_messages'][$key] ?? $key;
+    if (!empty($args)) {
+        return vsprintf($msg, $args);
+    }
+    return $msg;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -67,7 +86,7 @@ function actionRawPort() {
     }
 
     if (!checkChronyCanHoldover()) {
-        err("gpsd держит порт, но chrony уже в holdover режиме.\nОстановка gpsd небезопасна. Сначала восстановите синхронизацию.");
+        err(__('holdover_warning'));
         return;
     }
 
@@ -92,7 +111,7 @@ function actionRawPort() {
     if ($result) {
         ok($result, ['source' => 'direct', 'baud' => $foundBaud]);
     } else {
-        err("Нет NMEA данных ни на одной скорости.\ngpsd перезапущен.", ['source' => 'direct']);
+        err(__('no_nmea_data'));
     }
 }
 
@@ -116,10 +135,10 @@ function actionPortInfo() {
         }
     }
 
-    $output = "=== Устройства ===\n" . $stat['out'] .
-              "\n\n=== Открыто процессами ===\n" . ($lsof['out'] ?: '(никем не открыто)') .
-              "\n\n=== Baudrate (из gpsd) ===\n" . ($baud ? "{$baud} bps" : "не определён") .
-              "\n\n=== Права www-data ===\n" . $groups['out'];
+    $output = __("device_info_header", $stat['out']) .
+              __("processes_header", $lsof['out'] ?: __('none')) .
+              __("baudrate_header", $baud ? "{$baud} bps" : __('baud_not_determined')) .
+              __("permissions_header", $groups['out']);
 
     ok($output, ['baud' => $baud]);
 }
@@ -132,15 +151,16 @@ function actionSwitchMode($mode) {
     if ($mode === 'ucenter') {
         $check = run('which ser2net 2>/dev/null || dpkg -l ser2net 2>/dev/null | grep -c "^ii"');
         if (empty(trim($check['out']))) {
-            err("ser2net не установлен.\nУстановите: sudo apt install ser2net\nЗатем скопируйте конфиг: sudo cp /var/www/html/monitor/ser2net.yaml /etc/ser2net.yaml");
+            err(__('ser2net_not_installed'));
             return;
         }
 
         if (!checkChronyCanHoldover()) {
-            err("chrony в holdover режиме — остановка gpsd небезопасна.\nСначала восстановите синхронизацию.");
+            err(__('holdover_warning'));
             return;
         }
-	// Получаем скорость из запроса или из конфига
+
+        // Получаем скорость из запроса или из конфига
         $reqBaud = isset($_GET['baud']) ? (int)$_GET['baud'] : null;
         $cfgU = loadConfig();
         $ucenterBaud = $reqBaud ?: ($cfgU['ser2net']['baudrate'] ?? 9600);
@@ -149,14 +169,12 @@ function actionSwitchMode($mode) {
         // Автосоздание конфига ser2net
         $cfgPath = '/etc/ser2net.yaml';
         if (!file_exists($cfgPath)) {
-            //$port = loadConfig()['ser2net']['port'] ?? 2000;
-            $baud = loadConfig()['ser2net']['baudrate'] ?? 9600;
             $configContent = "connection: &con1\n"
                 . "  accepter: tcp,{$port}\n"
                 . "  enable: on\n"
                 . "  connector: serialdev,/dev/ttyAMA0,{$ucenterBaud}n81,local\n";
             if (file_put_contents($cfgPath, $configContent) === false) {
-                err("Не удалось создать конфиг ser2net. Проверьте права на запись в /etc/");
+                err(__('config_write_failed'));
                 return;
             }
         }
@@ -166,19 +184,18 @@ function actionSwitchMode($mode) {
         $r = run('sudo systemctl start ser2net');
         sleep(1);
 
-        $port = loadConfig()['ser2net']['port'] ?? 2000;
         $st = run("ss -tlnp | grep ':{$port}'");
         if (empty(trim($st['out']))) {
             run('sudo systemctl stop ser2net 2>/dev/null');
             run('sudo systemctl start gpsd chrony');
-            err("Порт {$port} не открыт. Проверьте настройки фаервола.");
+            err(__('port_not_open', $port));
             return;
         }
 
         $st = run('systemctl is-active ser2net');
         if (trim($st['out']) === 'active') {
-            $ip   = getServerIP();
-            ok("Режим u-center активен\nser2net: tcp://{$ip}:{$port}\nu-center: File → Receiver → Network → tcp://{$ip}:{$port}", ['mode'=>'ucenter']);
+            $ip = getServerIP();
+            ok(__('mode_ucenter_active', $ip, $port, $ip, $port), ['mode'=>'ucenter']);
         } else {
             run('sudo systemctl stop ser2net 2>/dev/null');
             run('sudo systemctl start gpsd chrony');
@@ -215,9 +232,9 @@ function actionSwitchMode($mode) {
         $gs = trim(run('systemctl is-active gpsd')['out']);
         $cs = trim(run('systemctl is-active chrony')['out']);
         if ($gs === 'active' && $cs === 'active') {
-            ok("Режим NTP активен\ngpsd: {$gs}\nchrony: {$cs}", ['mode'=>'time']);
+            ok(__('mode_ntp_active', $gs, $cs), ['mode'=>'time']);
         } else {
-            err("Сервисы запущены с ошибкой\ngpsd: {$gs}\nchrony: {$cs}");
+            err(__('service_error', $gs, $cs));
         }
     }
 }
@@ -274,7 +291,7 @@ function actionTelegramTest() {
     $tg  = $cfg['telegram'] ?? [];
 
     if (empty($tg['bot_token']) || empty($tg['chat_id'])) {
-        err("Не настроены bot_token или chat_id в config.json");
+        err(__('telegram_not_configured'));
         return;
     }
 
@@ -402,14 +419,14 @@ switch ($action) {
         run('sudo systemctl restart gpsd');
         sleep(2);
         $s = trim(run('systemctl is-active gpsd')['out']);
-        $s==='active' ? ok("gpsd перезапущен: {$s}") : err("gpsd: {$s}");
+        $s==='active' ? ok(__('gpsd_restarted', $s)) : err("gpsd: {$s}");
         break;
 
     case 'restart_chrony':
         run('sudo systemctl restart chrony');
         sleep(2);
         $s = trim(run('systemctl is-active chrony')['out']);
-        $s==='active' ? ok("chrony перезапущен: {$s}") : err("chrony: {$s}");
+        $s==='active' ? ok(__('chrony_restarted', $s)) : err("chrony: {$s}");
         break;
 
     case 'raw_port':
@@ -449,22 +466,6 @@ switch ($action) {
 
     case 'config_write':
         actionConfigWrite();
-        break;
-
-    case 'get_instructions':
-        $cfg  = loadConfig();
-        $mode = $_GET['mode'] ?? 'ntp';
-        $instrs = $cfg['connection_instructions'][$mode] ?? [];
-        $ip     = getServerIP();
-        $host   = getServerHostname();
-        $ntpP   = $cfg['server']['ntp_port']  ?? 123;
-        $s2P    = $cfg['ser2net']['port']      ?? 2000;
-        $result = [];
-        foreach ($instrs as $os => $text) {
-            $result[$os] = str_replace(['{IP}','{HOST}','{PORT}','{SER2_PORT}'],
-                                       [$ip,   $host,   $ntpP,  $s2P], $text);
-        }
-        echo json_encode(['success'=>true,'instructions'=>$result,'ip'=>$ip,'hostname'=>$host,'ntp_port'=>$ntpP,'ser2_port'=>$s2P], JSON_UNESCAPED_UNICODE);
         break;
 
     case 'server_info':
