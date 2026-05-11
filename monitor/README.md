@@ -149,18 +149,6 @@
 
 ### 1. Копирование файлов
 Скопируйте все файлы в `/var/www/html/monitor/` (или другую директорию веб‑сервера).  
-Список файлов:
-
-    index.html
-    monitor.js
-    api.php
-    action.php
-    config.json
-    style.css
-    ru_locale.txt
-    en_locale.txt
-    setup_auth.sh
-    favicon.svg
 
 Установите владельца `www-data:www-data` и права:
 
