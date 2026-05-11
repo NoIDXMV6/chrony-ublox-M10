@@ -138,7 +138,7 @@ sudo /root/diagnose_ntp.sh
 ```bash
 # Копировать файлы мониторинга
 sudo mkdir -p /var/www/html/monitor
-sudo cp monitor/*.php monitor/*.html monitor/*.json monitor/*.css monitor/monitor.js /var/www/html/monitor/
+sudo cp monitor/*.php monitor/*.html monitor/*.json monitor/*.css monitor/*.js monitor/*.txt monitor/*.svg /var/www/html/monitor/
 
 # Права доступа
 sudo chown -R www-data:www-data /var/www/html/monitor/
