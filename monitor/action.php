@@ -36,14 +36,12 @@ function getServerHostname() {
 }
 
 // ─── Chrony holdover guard ─────────────────────────────────────────────────
-// Перед остановкой gpsd проверяем что chrony переживёт перерыв
 
 function checkChronyCanHoldover($maxSec = 60) {
     $r = run('chronyc tracking 2>/dev/null');
-    // Если stratum <= 2 и есть интернет-серверы — можно остановить gpsd ненадолго
     if (preg_match('/Stratum\s*:\s*(\d+)/', $r['out'], $m)) {
         $stratum = (int)$m[1];
-        if ($stratum >= 10) return false; // уже в holdover
+        if ($stratum >= 10) return false;
     }
     return true;
 }
@@ -51,17 +49,13 @@ function checkChronyCanHoldover($maxSec = 60) {
 // ─── Читать NMEA через gpsd JSON API (без остановки gpsd) ─────────────────
 
 function readNmeaViaGpsd($lines = 20, $timeout = 4) {
-    // gpspipe читает из gpsd сокета, не из ttyAMA0 напрямую
     $r = run("timeout {$timeout} gpspipe -r -n {$lines} 2>/dev/null");
     return $r['out'];
 }
 
 // ─── action: raw_port ──────────────────────────────────────────────────────
-// Стратегия: сначала читаем через gpsd. Если gpsd не даёт данные —
-// останавливаем gpsd, читаем порт, запускаем gpsd обратно.
 
 function actionRawPort() {
-    // Попытка 1: через gpsd (не трогаем порт)
     $nmea = readNmeaViaGpsd(25, 4);
     $filtered = array_filter(explode("\n", $nmea), fn($l) => str_starts_with(trim($l), '$'));
     if (count($filtered) > 0) {
@@ -72,13 +66,11 @@ function actionRawPort() {
         return;
     }
 
-    // Попытка 2: остановить gpsd, прочитать напрямую, запустить gpsd
     if (!checkChronyCanHoldover()) {
         err("gpsd держит порт, но chrony уже в holdover режиме.\nОстановка gpsd небезопасна. Сначала восстановите синхронизацию.");
         return;
     }
 
-    // Остановка gpsd
     run('sudo systemctl stop gpsd gpsd.socket 2>/dev/null');
     sleep(1);
 
@@ -94,7 +86,6 @@ function actionRawPort() {
         }
     }
 
-    // Запуск gpsd обратно
     run('sudo systemctl start gpsd');
     sleep(1);
 
@@ -112,7 +103,6 @@ function actionPortInfo() {
     $lsof  = run('sudo lsof /dev/ttyAMA0 /dev/pps0 2>/dev/null | tail -n +2');
     $groups= run('id www-data 2>/dev/null');
 
-    // Получаем baudrate из gpsd JSON
     $baud = null;
     $nmea = run("timeout 3 gpspipe -w -n 3 2>/dev/null");
     foreach (explode("\n", $nmea['out']) as $line) {
@@ -140,7 +130,6 @@ function actionSwitchMode($mode) {
     if (!in_array($mode, ['time', 'ucenter'])) { err('Неверный режим'); return; }
 
     if ($mode === 'ucenter') {
-        // Проверяем что ser2net установлен
         $check = run('which ser2net 2>/dev/null || dpkg -l ser2net 2>/dev/null | grep -c "^ii"');
         if (empty(trim($check['out']))) {
             err("ser2net не установлен.\nУстановите: sudo apt install ser2net\nЗатем скопируйте конфиг: sudo cp /var/www/html/monitor/ser2net.yaml /etc/ser2net.yaml");
@@ -151,19 +140,46 @@ function actionSwitchMode($mode) {
             err("chrony в holdover режиме — остановка gpsd небезопасна.\nСначала восстановите синхронизацию.");
             return;
         }
+	// Получаем скорость из запроса или из конфига
+        $reqBaud = isset($_GET['baud']) ? (int)$_GET['baud'] : null;
+        $cfgU = loadConfig();
+        $ucenterBaud = $reqBaud ?: ($cfgU['ser2net']['baudrate'] ?? 9600);
+        $port = $cfgU['ser2net']['port'] ?? 2000;
 
+        // Автосоздание конфига ser2net
+        $cfgPath = '/etc/ser2net.yaml';
+        if (!file_exists($cfgPath)) {
+            //$port = loadConfig()['ser2net']['port'] ?? 2000;
+            $baud = loadConfig()['ser2net']['baudrate'] ?? 9600;
+            $configContent = "connection: &con1\n"
+                . "  accepter: tcp,{$port}\n"
+                . "  enable: on\n"
+                . "  connector: serialdev,/dev/ttyAMA0,{$ucenterBaud}n81,local\n";
+            if (file_put_contents($cfgPath, $configContent) === false) {
+                err("Не удалось создать конфиг ser2net. Проверьте права на запись в /etc/");
+                return;
+            }
+        }
+        run("stty -F /dev/ttyAMA0 {$ucenterBaud} raw 2>/dev/null");
         run('sudo systemctl stop gpsd gpsd.socket chrony 2>/dev/null');
         sleep(1);
         $r = run('sudo systemctl start ser2net');
         sleep(1);
+
+        $port = loadConfig()['ser2net']['port'] ?? 2000;
+        $st = run("ss -tlnp | grep ':{$port}'");
+        if (empty(trim($st['out']))) {
+            run('sudo systemctl stop ser2net 2>/dev/null');
+            run('sudo systemctl start gpsd chrony');
+            err("Порт {$port} не открыт. Проверьте настройки фаервола.");
+            return;
+        }
+
         $st = run('systemctl is-active ser2net');
         if (trim($st['out']) === 'active') {
             $ip   = getServerIP();
-            $cfg  = loadConfig();
-            $port = $cfg['ser2net']['port'] ?? 2947;
             ok("Режим u-center активен\nser2net: tcp://{$ip}:{$port}\nu-center: File → Receiver → Network → tcp://{$ip}:{$port}", ['mode'=>'ucenter']);
         } else {
-            // Откатываемся
             run('sudo systemctl stop ser2net 2>/dev/null');
             run('sudo systemctl start gpsd chrony');
             err("Не удалось запустить ser2net\n" . $r['out']);
@@ -172,10 +188,30 @@ function actionSwitchMode($mode) {
     } elseif ($mode === 'time') {
         run('sudo systemctl stop ser2net 2>/dev/null');
         sleep(1);
+
+        // === Сброс приёмника в NMEA-режим ===
+        $cfg    = loadConfig();
+        $baud   = $cfg['gnss']['baudrate'] ?? 38400;
+        $device = $cfg['gnss']['device']    ?? '/dev/ttyAMA0';
+
+        $pubxBody = "PUBX,41,1,0007,0001,{$baud},0";
+        $checksum = 0;
+        for ($i = 0; $i < strlen($pubxBody); $i++) {
+            $checksum ^= ord($pubxBody[$i]);
+        }
+        $checksumHex = strtoupper(sprintf('%02X', $checksum));
+        $command = "\$" . $pubxBody . "*" . $checksumHex . "\\r\\n";
+
+        run("stty -F {$device} {$baud} raw 2>/dev/null");
+        run("echo -e '$command' > {$device}");
+        sleep(3);
+
+        // Запускаем сервисы
         run('sudo systemctl start gpsd');
         sleep(2);
         run('sudo systemctl start chrony');
         sleep(2);
+
         $gs = trim(run('systemctl is-active gpsd')['out']);
         $cs = trim(run('systemctl is-active chrony')['out']);
         if ($gs === 'active' && $cs === 'active') {
@@ -193,7 +229,6 @@ function sendTelegram($token, $chatId, $text, $proxy = null) {
     $params = http_build_query(['chat_id'=>$chatId,'text'=>$text,'parse_mode'=>'HTML','disable_web_page_preview'=>'true']);
     $fullUrl = "{$url}?{$params}";
 
-    // Попытка через curl (поддерживает proxy)
     if (function_exists('curl_init')) {
         $ch = curl_init($fullUrl);
         curl_setopt_array($ch, [
@@ -222,7 +257,6 @@ function sendTelegram($token, $chatId, $text, $proxy = null) {
         return ['success'=>$httpCode===200&&($decoded['ok']??false), 'http_code'=>$httpCode, 'response'=>$decoded, 'error'=>null];
     }
 
-    // Fallback: file_get_contents (без proxy)
     if ($proxy && !empty($proxy['host'])) {
         return ['success'=>false, 'error'=>'curl не установлен, proxy недоступен. Установите: sudo apt install php-curl', 'http_code'=>0, 'response'=>null];
     }
@@ -286,7 +320,6 @@ function actionConfigWrite() {
     $data = json_decode($body, true);
     if ($data === null) { err('Невалидный JSON: ' . json_last_error_msg()); return; }
 
-    // Защита от записи опасных полей
     unset($data['_dangerous']);
 
     $written = file_put_contents($f, json_encode($data, JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));
@@ -301,14 +334,18 @@ function actionServerInfo() {
     $hostname = getServerHostname();
     $cfg      = loadConfig();
     $ntpPort  = $cfg['server']['ntp_port'] ?? 123;
-    $ser2Port = $cfg['ser2net']['port']     ?? 2947;
+    $ser2Port = $cfg['ser2net']['port']     ?? 2000;
+    $ser2Baud = $cfg['ser2net']['baudrate']  ?? 9600;
+    $baudOpts = $cfg['ser2net']['baudrate_options'] ?? [4800, 9600, 19200, 38400, 57600, 115200];
 
     echo json_encode([
-        'success'  => true,
-        'ip'       => $ip,
-        'hostname' => $hostname,
-        'ntp_port' => $ntpPort,
-        'ser2_port'=> $ser2Port,
+        'success'          => true,
+        'ip'               => $ip,
+        'hostname'         => $hostname,
+        'ntp_port'         => $ntpPort,
+        'ser2_port'        => $ser2Port,
+        'ser2_baudrate'    => $ser2Baud,
+        'baudrate_options' => $baudOpts,
     ], JSON_UNESCAPED_UNICODE);
 }
 
@@ -324,7 +361,35 @@ function actionTelegramStatus() {
 
 // ─── Router ───────────────────────────────────────────────────────────────
 
+$needsAuth = [
+    'makestep', 'restart_gpsd', 'restart_chrony',
+    'switch_mode', 'config_write',
+];
+
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
+
+if (in_array($action, $needsAuth)) {
+    $authPassFile = __DIR__ . '/.monitor_pass';
+    $providedPass = $_SERVER['PHP_AUTH_PW'] ?? $_POST['auth_pass'] ?? $_GET['auth_pass'] ?? '';
+    $authenticated = false;
+    
+    if (file_exists($authPassFile) && !empty($providedPass)) {
+        $storedHash = trim(file_get_contents($authPassFile));
+        if (password_verify($providedPass, $storedHash)) {
+            $authenticated = true;
+        }
+    }
+    
+    if (!$authenticated && getenv('MONITOR_PASSWORD') && $providedPass === getenv('MONITOR_PASSWORD')) {
+        $authenticated = true;
+    }
+    
+    if (!$authenticated) {
+        http_response_code(401);
+        echo json_encode(['success'=>false,'error'=>'Требуется пароль', 'auth_required'=>true]);
+        exit;
+    }
+}
 
 switch ($action) {
 
@@ -393,8 +458,7 @@ switch ($action) {
         $ip     = getServerIP();
         $host   = getServerHostname();
         $ntpP   = $cfg['server']['ntp_port']  ?? 123;
-        $s2P    = $cfg['ser2net']['port']      ?? 2947;
-        // Replace placeholders
+        $s2P    = $cfg['ser2net']['port']      ?? 2000;
         $result = [];
         foreach ($instrs as $os => $text) {
             $result[$os] = str_replace(['{IP}','{HOST}','{PORT}','{SER2_PORT}'],

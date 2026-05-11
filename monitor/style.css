@@ -430,3 +430,52 @@ body {
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg2); }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ─── Password Dialog ────────────────────────────────────────── */
+#pwd-cancel:hover {
+  background: var(--border2) !important;
+  color: var(--text) !important;
+}
+/* ─── Mobile layout improvements ─────────────────────────────── */
+@media (max-width: 767px) {
+  .cards-row {
+    grid-template-columns: repeat(auto-fit, minmax(calc(50% - 6px), 1fr));
+  }
+
+  .grid-top,
+  .grid-mid,
+  .grid-bot,
+  .grid-rep {
+    grid-template-columns: 1fr !important;
+  }
+
+  [style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Увеличиваем тач-цели для кнопок */
+  .btn {
+    padding: 7px 14px;
+    font-size: 0.75rem;
+  }
+
+  .clock-time {
+    font-size: 2.2rem;
+  }
+
+  .clock-ms {
+    font-size: 1.3rem;
+  }
+}
+
+/* ─── Baudrate Dialog ────────────────────────────────────────── */
+#baud-cancel:hover {
+  background: var(--border2) !important;
+  color: var(--text) !important;
+}
+#baud-ok:hover {
+  opacity: .9;
+}
+#baud-select:focus {
+  border-color: var(--accent2);
+}

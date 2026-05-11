@@ -1,7 +1,6 @@
 /**
  * NTP Monitor — monitor.js
- * Весь клиентский JavaScript. Данные: api.php. Действия: action.php.
- * index.html содержит только разметку.
+ * Клиентская логика. index.html содержит только разметку.
  */
 
 'use strict';
@@ -15,13 +14,13 @@ const ACTION = 'action.php';
 
 const state = {
   refreshTimer : null,
-  offsets      : [],          // история offset для графика
+  offsets      : [],
   leafletMap   : null,
   leafletMarker: null,
   theme        : 'dark',
-  mode         : 'time',      // 'time' | 'ucenter'
+  mode         : 'time',
   server       : { ip:'', hostname:'', ntp_port:123, ser2_port:2947 },
-  lastSats     : [],          // последний список спутников (для перерисовки при смене темы)
+  lastSats     : [],
   firstLoad    : true,
 };
 
@@ -52,7 +51,7 @@ function srcStateEl(mode, state, nosel) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// Тема оформления
+// Тема
 // ══════════════════════════════════════════════════════════════
 
 function initTheme() {
@@ -69,7 +68,6 @@ function applyTheme(t) {
   if (btn) btn.textContent = (t === 'dark') ? '☀️' : '🌙';
   localStorage.setItem('ntp_theme', t);
   if (state.leafletMap) setTimeout(() => state.leafletMap.invalidateSize(), 100);
-  // Перерисовать skyview с новыми цветами темы
   if (state.lastSats.length) renderSkyview(state.lastSats);
 }
 
@@ -380,16 +378,13 @@ function renderSnrHistogram(sats) {
       `</div>`;
   }).join('');
 
-  // Reference lines positions
   const line30h = Math.round((30/MAX_SNR) * (HIST_H - 24));
   const line40h = Math.round((40/MAX_SNR) * (HIST_H - 24));
 
   el.innerHTML =
     `<div style="position:relative;display:flex;align-items:flex-end;height:${HIST_H}px;padding-bottom:22px;overflow-x:auto;overflow-y:hidden">` +
-    // 30 dBHz line
     `<div style="position:absolute;left:0;right:0;bottom:${22+line30h}px;height:1px;background:rgba(245,200,66,.35);pointer-events:none;z-index:1">` +
     `<span style="position:absolute;right:4px;bottom:2px;font-family:var(--mono);font-size:7px;color:rgba(245,200,66,.7)">30</span></div>` +
-    // 40 dBHz line
     `<div style="position:absolute;left:0;right:0;bottom:${22+line40h}px;height:1px;background:rgba(57,217,138,.35);pointer-events:none;z-index:1">` +
     `<span style="position:absolute;right:4px;bottom:2px;font-family:var(--mono);font-size:7px;color:rgba(57,217,138,.7)">40</span></div>` +
     bars +
@@ -700,7 +695,6 @@ function renderChart() {
   const tx  = t => pad.l + ((t - state.offsets[0].t) / (state.offsets[state.offsets.length-1].t - state.offsets[0].t || 1)) * cw;
   const ty  = v => pad.t + (1 - (v - mn) / (mx - mn)) * ch;
 
-  // Grid
   for (let i = 0; i <= 4; i++) {
     const y = pad.t + i*ch/4, val = mx - i*(mx-mn)/4;
     ctx.strokeStyle = '#1e2a3a'; ctx.lineWidth = .5;
@@ -709,7 +703,6 @@ function renderChart() {
     ctx.fillText(val.toFixed(1)+' нс', pad.l-4, y+4);
   }
 
-  // Zero line
   if (mn < 0 && mx > 0) {
     const y0 = ty(0);
     ctx.strokeStyle = '#243347'; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
@@ -717,7 +710,6 @@ function renderChart() {
     ctx.setLineDash([]);
   }
 
-  // Area fill
   ctx.beginPath(); ctx.moveTo(tx(state.offsets[0].t), ty(0));
   state.offsets.forEach(p => ctx.lineTo(tx(p.t), ty(p.v)));
   ctx.lineTo(tx(state.offsets[state.offsets.length-1].t), ty(0)); ctx.closePath();
@@ -725,18 +717,15 @@ function renderChart() {
   g.addColorStop(0, 'rgba(0,212,255,.18)'); g.addColorStop(1, 'rgba(0,212,255,.01)');
   ctx.fillStyle = g; ctx.fill();
 
-  // Line
   ctx.beginPath(); ctx.strokeStyle = '#00d4ff'; ctx.lineWidth = 1.5; ctx.lineJoin = 'round';
   state.offsets.forEach((p,i) => { i===0 ? ctx.moveTo(tx(p.t), ty(p.v)) : ctx.lineTo(tx(p.t), ty(p.v)); });
   ctx.stroke();
 
-  // Last point dot + label
   const lp = state.offsets[state.offsets.length-1];
   ctx.beginPath(); ctx.arc(tx(lp.t), ty(lp.v), 3, 0, Math.PI*2); ctx.fillStyle = '#00d4ff'; ctx.fill();
   ctx.fillStyle = '#00d4ff'; ctx.font = 'bold 10px JetBrains Mono,monospace'; ctx.textAlign = 'left';
   ctx.fillText(lp.v.toFixed(2)+' нс', W-pad.r+4, ty(lp.v)+4);
 
-  // Time axis
   ctx.fillStyle = '#4a6a88'; ctx.font = '10px JetBrains Mono,monospace'; ctx.textAlign = 'center';
   [0,.25,.5,.75,1].forEach(f => {
     const p = state.offsets[Math.floor(f*(state.offsets.length-1))]; if (!p) return;
@@ -883,20 +872,48 @@ function setRefreshInterval(s) {
 
 async function switchMode(mode) {
   const out = $('repair-output');
+
+  const password = await getAuthPassword();
+  if (!password) return;
+
+  // Для u‑center запрашиваем скорость
+  let baud = null;
+  if (mode === 'ucenter') {
+    const defaultBaud = state.server.ser2_baudrate || 9600;
+    const opts = state.server.baudrate_options || [4800, 9600, 19200, 38400, 57600, 115200];
+    baud = await showBaudrateDialog(defaultBaud, opts);
+    if (baud === null) return; // отмена
+  }
+
   if (out) { out.className = 'repair-output'; out.innerHTML = '<span class="spinner"></span>Переключение...'; }
   document.querySelectorAll('.btn').forEach(b => b.disabled = true);
 
   try {
-    const d = await fetchJSON(`${ACTION}?action=switch_mode&mode=${mode}`);
+    let url = `${ACTION}?action=switch_mode&mode=${mode}&auth_pass=${encodeURIComponent(password)}`;
+    if (baud !== null) url += `&baud=${baud}`;
+
+    const d = await fetchJSON(url);
+
+    if (d.auth_required) {
+      _cachedPassword = null;
+      if (out) { out.textContent = 'Неверный пароль. Попробуйте снова.'; out.className = 'repair-output error-out'; }
+      document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+      return;
+    }
+
     if (out) { out.textContent = d.output || ''; out.className = 'repair-output' + (d.success?'':' error-out'); }
     if (d.success) {
       state.mode = d.mode || mode;
       updateModeUI(state.mode);
-      // Показать popup с инструкцией по ser2net
       if (state.mode === 'ucenter') showConnPopup();
     }
   } catch(e) {
-    if (out) { out.textContent = 'Ошибка: '+e.message; out.className = 'repair-output error-out'; }
+    if (e.message && e.message.includes('401')) {
+      _cachedPassword = null;
+      if (out) { out.textContent = 'Неверный пароль. Попробуйте снова.'; out.className = 'repair-output error-out'; }
+    } else {
+      if (out) { out.textContent = 'Ошибка соединения: ' + e.message; out.className = 'repair-output error-out'; }
+    }
   }
 
   document.querySelectorAll('.btn').forEach(b => b.disabled = false);
@@ -929,15 +946,44 @@ function updateModeUI(mode) {
 async function doAction(action, outId) {
   const el = $(outId);
   if (!el) return;
-  el.className = 'repair-output'; el.innerHTML = '<span class="spinner"></span>Выполняется...';
+  
+  const needsAuth = ['makestep', 'restart_gpsd', 'restart_chrony', 'switch_mode', 'config_write'];
+  
+  let password = null;
+  if (needsAuth.includes(action)) {
+    password = await getAuthPassword();
+    if (!password) return;
+  }
+  
+  el.className = 'repair-output'; 
+  el.innerHTML = '<span class="spinner"></span>Выполняется...';
   document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+  
   try {
-    const d = await fetchJSON(`${ACTION}?action=${action}`);
+    let url = `${ACTION}?action=${action}`;
+    if (password) url += `&auth_pass=${encodeURIComponent(password)}`;
+    
+    const d = await fetchJSON(url);
+    
+    if (d.auth_required) {
+      _cachedPassword = null;
+      el.textContent = 'Неверный пароль. Попробуйте снова.';
+      el.className = 'repair-output error-out';
+      document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+      return;
+    }
+    
     el.textContent = d.output || d.error || '(нет вывода)';
     el.className   = 'repair-output' + (d.success===false ? ' error-out' : '');
   } catch(e) {
-    el.textContent = 'Ошибка: ' + e.message;
-    el.className   = 'repair-output error-out';
+    if (e.message && e.message.includes('401')) {
+      _cachedPassword = null;
+      el.textContent = 'Неверный пароль. Попробуйте снова.';
+      el.className = 'repair-output error-out';
+    } else {
+      el.textContent = 'Ошибка соединения: ' + e.message;
+      el.className = 'repair-output error-out';
+    }
   }
   document.querySelectorAll('.btn').forEach(b => b.disabled = false);
 }
@@ -984,11 +1030,181 @@ function startTimer() {
 }
 
 // ══════════════════════════════════════════════════════════════
+// Диалог ввода пароля
+// ══════════════════════════════════════════════════════════════
+
+let _cachedPassword = null;
+
+function showPasswordDialog() {
+  return new Promise((resolve) => {
+    const old = document.getElementById('pwd-dialog');
+    if (old) old.remove();
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'pwd-dialog';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);';
+    
+    overlay.innerHTML = `
+      <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:28px 24px 20px;width:min(380px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.5);animation:slideUp .25s ease;">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:2.5rem;margin-bottom:8px">🔐</div>
+          <div style="font-family:var(--mono);font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:4px">Подтверждение действия</div>
+          <div style="font-family:var(--mono);font-size:.6rem;color:var(--text3)">Введите пароль для выполнения операции</div>
+        </div>
+        <div style="margin-bottom:16px;position:relative">
+          <input type="password" id="pwd-input" placeholder="Пароль" autofocus style="width:100%;font-family:var(--mono);font-size:.75rem;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:10px 40px 10px 14px;outline:none;transition:border-color .2s;box-sizing:border-box" onfocus="this.style.borderColor='var(--accent2)'" onblur="this.style.borderColor='var(--border2)'" onkeydown="if(event.key==='Enter')document.getElementById('pwd-ok').click()">
+          <button type="button" id="pwd-toggle" title="Показать пароль" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);cursor:pointer;font-size:.75rem;padding:4px;line-height:1">👁</button>
+          <div id="pwd-error" style="font-family:var(--mono);font-size:.6rem;color:var(--red);margin-top:6px;min-height:16px"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="pwd-cancel" style="flex:1;font-family:var(--mono);font-size:.68rem;color:var(--text3);background:transparent;border:1px solid var(--border);border-radius:6px;padding:10px;cursor:pointer;transition:background .15s,color .15s">Отмена</button>
+          <button id="pwd-ok" style="flex:1;font-family:var(--mono);font-size:.68rem;color:#000;background:var(--accent);border:none;border-radius:6px;padding:10px;cursor:pointer;font-weight:600;transition:opacity .15s">Подтвердить</button>
+        </div>
+      </div>
+      <style>@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}</style>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    const input = overlay.querySelector('#pwd-input');
+    const errorEl = overlay.querySelector('#pwd-error');
+    const okBtn = overlay.querySelector('#pwd-ok');
+    const cancelBtn = overlay.querySelector('#pwd-cancel');
+    const toggleBtn = overlay.querySelector('#pwd-toggle');
+    
+    let pwdVisible = false;
+    toggleBtn.onclick = () => {
+      pwdVisible = !pwdVisible;
+      input.type = pwdVisible ? 'text' : 'password';
+      toggleBtn.textContent = pwdVisible ? '🙈' : '👁';
+    };
+    
+    const close = (result) => {
+      overlay.style.opacity = '0';
+      overlay.style.transition = 'opacity .15s';
+      setTimeout(() => overlay.remove(), 150);
+      resolve(result);
+    };
+    
+    okBtn.onclick = () => {
+      const val = input.value.trim();
+      if (!val) {
+        errorEl.textContent = 'Введите пароль';
+        input.style.borderColor = 'var(--red)';
+        setTimeout(() => input.style.borderColor = 'var(--border2)', 1500);
+        return;
+      }
+      close(val);
+    };
+    
+    cancelBtn.onclick = () => close(null);
+    
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close(null);
+    });
+    
+    const escHandler = (e) => {
+      if (e.key === 'Escape') {
+        close(null);
+        document.removeEventListener('keydown', escHandler);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+    
+    setTimeout(() => input.focus(), 100);
+  });
+}
+
+function showBaudrateDialog(defaultBaud, options) {
+  return new Promise((resolve) => {
+    const old = document.getElementById('baud-dialog');
+    if (old) old.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'baud-dialog';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);';
+
+    const optionsHtml = options
+      .map(v => `<option value="${v}" ${v == defaultBaud ? 'selected' : ''}>${v} бод</option>`)
+      .join('');
+
+    overlay.innerHTML = `
+      <div class="modal-card" style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:28px 24px 20px;width:min(380px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.5);animation:slideUp .25s ease;">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:2.5rem;margin-bottom:8px">⚡</div>
+          <div style="font-family:var(--mono);font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:4px">Скорость порта для u‑center</div>
+          <div style="font-family:var(--mono);font-size:.6rem;color:var(--text3)">Выберите скорость соединения</div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <select id="baud-select" style="width:100%;font-family:var(--mono);font-size:.75rem;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:10px 14px;outline:none;transition:border-color .2s;box-sizing:border-box;">
+            ${optionsHtml}
+          </select>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="baud-cancel" style="flex:1;font-family:var(--mono);font-size:.68rem;color:var(--text3);background:transparent;border:1px solid var(--border);border-radius:6px;padding:10px;cursor:pointer;transition:background .15s,color .15s">Отмена</button>
+          <button id="baud-ok" style="flex:1;font-family:var(--mono);font-size:.68rem;color:#000;background:var(--accent);border:none;border-radius:6px;padding:10px;cursor:pointer;font-weight:600;transition:opacity .15s">Подтвердить</button>
+        </div>
+      </div>
+      <style>@keyframes fadeIn{from{opacity:0}to{opacity:1}} @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}</style>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const select = overlay.querySelector('#baud-select');
+    const okBtn = overlay.querySelector('#baud-ok');
+    const cancelBtn = overlay.querySelector('#baud-cancel');
+
+    const close = (value) => {
+      overlay.style.opacity = '0';
+      overlay.style.transition = 'opacity .15s';
+      setTimeout(() => overlay.remove(), 150);
+      resolve(value);
+    };
+
+    okBtn.onclick = () => {
+      const val = parseInt(select.value, 10);
+      close(isNaN(val) ? null : val);
+    };
+
+    cancelBtn.onclick = () => close(null);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close(null);
+    });
+
+    const escHandler = (e) => {
+      if (e.key === 'Escape') {
+        close(null);
+        document.removeEventListener('keydown', escHandler);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+    setTimeout(() => select.focus(), 100);
+  });
+}
+
+async function getAuthPassword() {
+  if (_cachedPassword) return _cachedPassword;
+  
+  const pass = await showPasswordDialog();
+  if (pass) {
+    _cachedPassword = pass;
+    clearTimeout(window._passwordTimeout);
+    window._passwordTimeout = setTimeout(() => { _cachedPassword = null; }, 30 * 60 * 1000);
+  }
+  return pass;
+}
+
+function clearAuthPassword() {
+  _cachedPassword = null;
+  clearTimeout(window._passwordTimeout);
+}
+
+// ══════════════════════════════════════════════════════════════
 // Инициализация
 // ══════════════════════════════════════════════════════════════
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Закрытие попапов по клику на оверлей
   ['conn-popup','settings-popup'].forEach(id => {
     const el = $(id);
     if (el) el.addEventListener('click', e => { if (e.target === e.currentTarget) closePopup(id); });
