@@ -201,7 +201,16 @@
     "ok": "Подтвердить",
     "unit": "бод"
   },
-  "footer": "⭐ github.com/NoIDXMV6/chrony-ublox-M10",
+  "footer_links": [
+    {
+      "url": "https://github.com/NoIDXMV6/chrony-ublox-M10",
+      "text": "⭐ github.com/NoIDXMV6/chrony-ublox-M10"
+    },
+    {
+      "url": "https://kozhevatov.ru",
+      "text": "🌐 kozhevatov.ru"
+    }
+  ],
  "connection_instructions": {
     "ntp": {
       "Linux": "# chrony (рекомендуется)\necho \"server {IP} iburst prefer\" >> /etc/chrony/chrony.conf\nsystemctl restart chrony\nchronyc sources -v\n\n# ntpd\necho \"server {IP} iburst\" >> /etc/ntp.conf\nsystemctl restart ntp",

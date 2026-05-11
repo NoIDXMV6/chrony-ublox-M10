@@ -84,6 +84,18 @@ function updateStaticTexts() {
   if (dataLabel) dataLabel.textContent = t('header.data_label', 'Данные:') + ' ';
   const loaderText = document.getElementById('loader-text');
   if (loaderText) loaderText.textContent = t('loader', 'Инициализация...');
+// Рендеринг футера
+  const container = document.getElementById('footer-container');
+  if (container) {
+    const links = i18n.footer_links;
+    if (links && links.length) {
+      container.innerHTML = links.map(link =>
+        `<a href="${link.url}" target="_blank" style="font-family:var(--mono);font-size:.68rem;color:var(--text3);text-decoration:none;">${link.text}</a>`
+      ).join(' | ');
+    } else {
+      container.innerHTML = ''; // или fallback, если хотите
+    }
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -692,7 +704,10 @@ function renderMap(lat, lon) {
   if (!state.leafletMap) {
     container.innerHTML = '';
     state.leafletMap = L.map(container, { zoomControl:true }).setView([lat, lon], 14);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap', maxZoom:19 }).addTo(state.leafletMap);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap contributors',maxZoom: 19}).addTo(state.leafletMap);
+    // Убираем префикс "Leaflet" (где обычно флаг)
+    state.leafletMap.attributionControl.setPrefix(false);
+
     const icon = L.divIcon({
       html: '<div style="width:14px;height:14px;background:#00d4ff;border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px #00d4ff"></div>',
       iconSize:[14,14], iconAnchor:[7,7], className:'',
