@@ -189,34 +189,50 @@ function actionSwitchMode($mode) {
 // ─── action: telegram_test ────────────────────────────────────────────────
 
 function sendTelegram($token, $chatId, $text, $proxy = null) {
-    $url = "https://api.telegram.org/bot{$token}/sendMessage";
-    $params = http_build_query(['chat_id'=>$chatId,'text'=>$text,'parse_mode'=>'HTML']);
+    $url    = "https://api.telegram.org/bot{$token}/sendMessage";
+    $params = http_build_query(['chat_id'=>$chatId,'text'=>$text,'parse_mode'=>'HTML','disable_web_page_preview'=>'true']);
+    $fullUrl = "{$url}?{$params}";
 
-    $ch = curl_init("{$url}?{$params}");
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 15,
-        CURLOPT_SSL_VERIFYPEER => true,
-    ]);
-
-    if ($proxy && !empty($proxy['host'])) {
-        $proxyUrl = $proxy['host'] . ':' . ($proxy['port'] ?? 8080);
-        curl_setopt($ch, CURLOPT_PROXY, $proxyUrl);
-        curl_setopt($ch, CURLOPT_PROXYTYPE,
-            str_starts_with($proxy['type'] ?? 'http', 'socks') ? CURLPROXY_SOCKS5 : CURLPROXY_HTTP);
-        if (!empty($proxy['user'])) {
-            curl_setopt($ch, CURLOPT_PROXYUSERPWD, $proxy['user'] . ':' . ($proxy['pass'] ?? ''));
+    // Попытка через curl (поддерживает proxy)
+    if (function_exists('curl_init')) {
+        $ch = curl_init($fullUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        if ($proxy && !empty($proxy['host'])) {
+            $proxyUrl = $proxy['host'] . ':' . ($proxy['port'] ?? 8080);
+            curl_setopt($ch, CURLOPT_PROXY, $proxyUrl);
+            $proxyType = strtolower($proxy['type'] ?? 'http');
+            curl_setopt($ch, CURLOPT_PROXYTYPE,
+                str_starts_with($proxyType, 'socks') ? CURLPROXY_SOCKS5 : CURLPROXY_HTTP);
+            if (!empty($proxy['user'])) {
+                curl_setopt($ch, CURLOPT_PROXYUSERPWD, $proxy['user'] . ':' . ($proxy['pass'] ?? ''));
+            }
         }
+        $response = curl_exec($ch);
+        $curlErr  = curl_error($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($curlErr) return ['success'=>false, 'error'=>"curl: {$curlErr}", 'http_code'=>0, 'response'=>null];
+        if (empty($response)) return ['success'=>false, 'error'=>'Пустой ответ от Telegram', 'http_code'=>$httpCode, 'response'=>null];
+        $decoded = json_decode($response, true);
+        return ['success'=>$httpCode===200&&($decoded['ok']??false), 'http_code'=>$httpCode, 'response'=>$decoded, 'error'=>null];
     }
 
-    $response = curl_exec($ch);
-    $err      = curl_error($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($err) return ['success'=>false,'error'=>$err,'http_code'=>0,'response'=>null];
+    // Fallback: file_get_contents (без proxy)
+    if ($proxy && !empty($proxy['host'])) {
+        return ['success'=>false, 'error'=>'curl не установлен, proxy недоступен. Установите: sudo apt install php-curl', 'http_code'=>0, 'response'=>null];
+    }
+    $ctx = stream_context_create(['http'=>['timeout'=>15],'ssl'=>['verify_peer'=>true]]);
+    $response = @file_get_contents($fullUrl, false, $ctx);
+    if ($response === false) {
+        return ['success'=>false, 'error'=>'file_get_contents: запрос не удался. Установите php-curl для лучшей совместимости.', 'http_code'=>0, 'response'=>null];
+    }
     $decoded = json_decode($response, true);
-    return ['success'=>$httpCode===200&&($decoded['ok']??false), 'http_code'=>$httpCode, 'response'=>$decoded, 'error'=>null];
+    return ['success'=>($decoded['ok']??false), 'http_code'=>200, 'response'=>$decoded, 'error'=>null];
 }
 
 function actionTelegramTest() {
@@ -368,6 +384,23 @@ switch ($action) {
 
     case 'config_write':
         actionConfigWrite();
+        break;
+
+    case 'get_instructions':
+        $cfg  = loadConfig();
+        $mode = $_GET['mode'] ?? 'ntp';
+        $instrs = $cfg['connection_instructions'][$mode] ?? [];
+        $ip     = getServerIP();
+        $host   = getServerHostname();
+        $ntpP   = $cfg['server']['ntp_port']  ?? 123;
+        $s2P    = $cfg['ser2net']['port']      ?? 2947;
+        // Replace placeholders
+        $result = [];
+        foreach ($instrs as $os => $text) {
+            $result[$os] = str_replace(['{IP}','{HOST}','{PORT}','{SER2_PORT}'],
+                                       [$ip,   $host,   $ntpP,  $s2P], $text);
+        }
+        echo json_encode(['success'=>true,'instructions'=>$result,'ip'=>$ip,'hostname'=>$host,'ntp_port'=>$ntpP,'ser2_port'=>$s2P], JSON_UNESCAPED_UNICODE);
         break;
 
     case 'server_info':
