@@ -23,14 +23,15 @@
     "tile_server": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
   },
   "telegram": {
-    "enabled": true,
-    "bot_token": "TOKEN",
-    "chat_id": "ID",
-    "proxy_enabled": true,
-    "proxy_host": "HOST",
-    "proxy_port": PORT,
-    "proxy_user": "USER",
-    "proxy_pass": "PASS",
+    "enabled": false,
+    "bot_token": "",
+    "chat_id": "",
+    "proxy_enabled": false,
+    "proxy_host": "",
+    "proxy_port": 8080,
+    "proxy_type": "http",
+    "proxy_user": "",
+    "proxy_pass": "",
     "alerts": {
       "gpsd_down": true,
       "chrony_down": true,
@@ -42,5 +43,27 @@
   "ser2net": {
     "port": 2947,
     "baudrate": 9600
+  },
+  "connection_instructions": {
+    "ntp": {
+      "Linux":    "# chrony (рекомендуется)\necho \"server {IP} iburst prefer\" >> /etc/chrony/chrony.conf\nsystemctl restart chrony\nchronyc sources -v\n\n# ntpd\necho \"server {IP} iburst\" >> /etc/ntp.conf\nsystemctl restart ntp",
+      "Windows":  "# PowerShell (Administrator)\nw32tm /register\nnet start w32time\nw32tm /config /manualpeerlist:{IP} /syncfromflags:manual /reliable:YES /update\nw32tm /resync\nw32tm /query /status",
+      "macOS":    "sudo systemsetup -setnetworktimeserver {IP}\nsudo systemsetup -setusingnetworktime on\nsntp {IP}",
+      "Android":  "Настройки → Дата и время → Сервер NTP:\n{IP}",
+      "MikroTik": "/system ntp client set enabled=yes mode=unicast\n/system ntp client servers add address={IP}\n# Проверка:\n/system ntp client print",
+      "Cisco":    "ntp server {IP} prefer\n! Проверка:\nshow ntp status\nshow ntp associations",
+      "Procurve": "timesync ntp\nntp unicast\nntp server {IP}\n# Проверка:\nshow ntp status",
+      "D-Link":   "Настройки → Дата и время → NTP\nServer: {IP}\nPort: {PORT}"
+    },
+    "ucenter": {
+      "Linux":    "# u-center2\nFile → Open Network Stream\ntcp://{IP}:{SER2_PORT}",
+      "Windows":  "# u-center / u-center2\nFile → Receiver → Network Connection\ntcp://{IP}:{SER2_PORT}\n\nИли: File → Open Network Stream → tcp://{IP}:{SER2_PORT}",
+      "macOS":    "# u-center2\nFile → Open Network Stream\ntcp://{IP}:{SER2_PORT}",
+      "Android":  "NMEA поток приложением NMEA Reader:\ntcp://{IP}:{SER2_PORT}",
+      "MikroTik": "ser2net не применим для RouterOS",
+      "Cisco":    "ser2net не применим для Cisco IOS",
+      "Procurve": "ser2net не применим для ProCurve",
+      "D-Link":   "ser2net не применим для D-Link"
+    }
   }
 }
