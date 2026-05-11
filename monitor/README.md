@@ -25,23 +25,23 @@
 ## Архитектура системы
 
 ```
-┌───────────────────────────────────────────────────┐
-│                    Raspberry Pi 4                         │
-│                                                           │
+┌────────────────────────────────────────────────────┐
+│                    Raspberry Pi 4                  │
+│                                                    │
 │  ┌─────────┐  ┌───────────┐  ┌──────────────────┐  │
-│  │ gpsd     │  │  chrony     │  │  Apache + PHP       │  │
+│  │ gpsd    │  │  chrony   │  │  Apache + PHP    │  │
 │  │ ────────│  │ ──────────│  │ ─────────────────│  │
-│  │• GNSS    │  │• NTP        │  │• REST API           │  │
-│  │• PPS     │  │  daemon     │  │• Live Web UI        │  │
-│  └────┬────┘  └────┬──────┘  │• Action control     │  │
-│        │             │          └────────┬─────────┘   │
-│  /dev/ttyAMA0  /dev/pps0        :80/api.php               │
-│  /run/shm      chronyc          :80/action.php            │
-│                                 :80/index.html            │
-│                                                           │
-└───────────────────────────────────────────────────┘
+│  │• GNSS   │  │• NTP      │  │• REST API        │  │
+│  │• PPS    │  │  daemon   │  │• Live Web UI     │  │
+│  └────┬────┘  └────┬──────┘  │• Action control  │  │
+│       │            │         └────────┬─────────┘  │
+│  /dev/ttyAMA0  /dev/pps0        :80/api.php        │
+│  /run/shm      chronyc          :80/action.php     │
+│                                 :80/index.html     │
+│                                                    │
+└────────────────────────────────────────────────────┘
        ▲                                      │
-       │                                       │
+       │                                      │
    GNSS модуль                         LAN клиенты (браузеры)
    (UART + PPS)                        NTP клиенты
 ```
@@ -579,14 +579,21 @@ sudo nano /etc/sudoers.d/www-ntp-monitor
 
 Содержимое:
 ```
-# NTP Monitor — разрешения для веб-сервера
+# NTP Monitor — www-data sudo rights
 www-data ALL=(ALL) NOPASSWD: /usr/bin/chronyc
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl start gpsd
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop gpsd
 www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart gpsd
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl start gpsd.socket
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop gpsd.socket
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl start chrony
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop chrony
 www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart chrony
-www-data ALL=(ALL) NOPASSWD: /bin/systemctl is-active
-www-data ALL=(ALL) NOPASSWD: /bin/stty -F /dev/ttyAMA0*
-www-data ALL=(ALL) NOPASSWD: /usr/bin/timeout *
-www-data ALL=(ALL) NOPASSWD: /usr/bin/lsof /dev/ttyAMA0
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl start ser2net
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop ser2net
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart ser2net
+www-data ALL=(ALL) NOPASSWD: /bin/stty
+www-data ALL=(ALL) NOPASSWD: /usr/bin/lsof
 ```
 
 Сохранить (Ctrl+O, Enter, Ctrl+X) и установить права:
