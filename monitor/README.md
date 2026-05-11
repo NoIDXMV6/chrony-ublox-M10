@@ -1237,6 +1237,10 @@ monitor/
 
 ### ser2net (если используется для удалённого доступа к UART)
 
+```bash
+sudo apt-get install php-curl
+```
+
 ```json
 {
   "ser2net": {
