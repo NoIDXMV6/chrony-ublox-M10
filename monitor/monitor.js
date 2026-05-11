@@ -36,8 +36,8 @@ async function loadLocale(langCode) {
       };
     }
 
-    // Инициализируем селектор языка (один раз после загрузки конфига)
-    initLangSelector(config);
+    // Инициализируем селектор языка с ПРАВИЛЬНЫМ языком
+    initLangSelector(config, langCode);
 
     const lang = config.languages ? config.languages[langCode] : null;
     if (!lang) {
@@ -90,36 +90,32 @@ function updateStaticTexts() {
 // Динамическое создание переключателя языка из config.json
 // ══════════════════════════════════════════════════════════════
 
-function initLangSelector(config) {
+function initLangSelector(config, lang) {
     const languages = config?.languages;
     if (!languages || Object.keys(languages).length === 0) {
         console.warn('No languages defined in config.json');
         return;
     }
 
-    // Удаляем старый селектор, если был
+    // Удаляем старый контейнер, если был
     const oldContainer = document.getElementById('lang-container');
     if (oldContainer) oldContainer.remove();
 
-    // Создаём контейнер
     const container = document.createElement('div');
     container.id = 'lang-container';
 
-    // Создаём select
     const select = document.createElement('select');
     select.className = 'lang-select';
     select.title = 'Язык';
 
-    // Наполняем опциями из конфига
-    for (const [code, lang] of Object.entries(languages)) {
+    for (const [code, langObj] of Object.entries(languages)) {
         const option = document.createElement('option');
         option.value = code;
-        option.textContent = lang.name || code;
-        if (code === currentLang) option.selected = true;
+        option.textContent = langObj.name || code;
+        if (code === lang) option.selected = true;
         select.appendChild(option);
     }
 
-    // Обработчик смены языка
     select.addEventListener('change', function() {
         changeLanguage(this.value);
     });
@@ -238,7 +234,8 @@ function tickClock() {
 // ══════════════════════════════════════════════════════════════
 
 async function fetchJSON(url) {
-  const r = await fetch(url + (url.includes('?') ? '&' : '?') + '_=' + Date.now());
+  const sep = url.includes('?') ? '&' : '?';
+  const r = await fetch(`${url}${sep}_=${Date.now()}&lang=${currentLang}`);
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
@@ -908,31 +905,30 @@ function renderChart() {
 
 async function showConnPopup() {
   const mode = (state.mode === 'ucenter') ? 'ucenter' : 'ntp';
-  let data = null;
-  try { data = await fetchJSON(`${ACTION}?action=get_instructions&mode=${mode}`); } catch(e) {}
-
-  const ip     = data?.ip       || state.server.ip       || '192.168.x.x';
-  const host   = data?.hostname || state.server.hostname  || 'ntp.local';
-  const ntpP   = data?.ntp_port || state.server.ntp_port  || 123;
-  const s2P    = data?.ser2_port|| state.server.ser2_port || 2947;
-  const instrs = data?.instructions || {};
+  const instructions = i18n.connection_instructions?.[mode] || {};
+  
+  const ip = state.server.ip || '192.168.x.x';
+  const port = state.server.ser2_port || 2000;
+  const ntpPort = state.server.ntp_port || 123;
 
   const popupTitle = $('popup-title');
-  if (popupTitle) popupTitle.textContent = mode === 'ucenter'
-    ? t('popup_conn.title_ucenter', 'Подключение u-center (ser2net)')
-    : t('popup_conn.title_ntp', 'Подключение к NTP серверу');
+  if (popupTitle) popupTitle.textContent = mode === 'ucenter' 
+    ? t('popup_conn.title_ucenter') 
+    : t('popup_conn.title_ntp');
 
-  const tabs = Object.keys(instrs);
-  if (!tabs.length) {
-    $('popup-body').innerHTML = '<div class="info-msg">' + t('popup_conn.placeholder', 'Инструкции не настроены в config.json') + '</div>';
-    $('conn-popup').classList.add('open');
-    return;
-  }
+  const tabs = Object.keys(instructions);
+  if (!tabs.length) return;
 
-  const tabHtml = tabs.map((t,i) => `<button class="popup-tab ${i===0?'active':''}" onclick="switchPopupTab(this,'ptab-${i}')">${t}</button>`).join('');
-  const secHtml = tabs.map((t,i) => {
-    const header = mode==='ucenter' ? `<h4>tcp://${ip}:${s2P}</h4><p style="font-size:.68rem;color:var(--text3);margin-bottom:6px">Переключи режим кнопкой "u-center" выше</p>` : `<h4>${ip} (${host}) · UDP ${ntpP}</h4>`;
-    return `<div id="ptab-${i}" class="popup-section ${i===0?'active':''}">${header}<pre>${h(instrs[t]||'')}</pre></div>`;
+  const tabHtml = tabs.map((t, i) => 
+    `<button class="popup-tab ${i===0?'active':''}" onclick="switchPopupTab(this,'ptab-${i}')">${t}</button>`
+  ).join('');
+  
+  const secHtml = tabs.map((t, i) => {
+    let content = instructions[t] || '';
+    content = content.replace(/\{IP\}/g, ip)
+                     .replace(/\{PORT\}/g, ntpPort)
+                     .replace(/\{SER2_PORT\}/g, port);
+    return `<div id="ptab-${i}" class="popup-section ${i===0?'active':''}"><pre>${h(content)}</pre></div>`;
   }).join('');
 
   $('popup-body').innerHTML = `<div class="popup-tabs">${tabHtml}</div>${secHtml}`;

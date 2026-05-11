@@ -201,5 +201,47 @@
     "ok": "Подтвердить",
     "unit": "бод"
   },
-  "footer": "⭐ github.com/NoIDXMV6/chrony-ublox-M10"
+  "footer": "⭐ github.com/NoIDXMV6/chrony-ublox-M10",
+ "connection_instructions": {
+    "ntp": {
+      "Linux": "# chrony (рекомендуется)\necho \"server {IP} iburst prefer\" >> /etc/chrony/chrony.conf\nsystemctl restart chrony\nchronyc sources -v\n\n# ntpd\necho \"server {IP} iburst\" >> /etc/ntp.conf\nsystemctl restart ntp",
+      "Windows": "# PowerShell (Administrator)\nw32tm /register\nnet start w32time\nw32tm /config /manualpeerlist:{IP} /syncfromflags:manual /reliable:YES /update\nw32tm /resync\nw32tm /query /status",
+      "macOS": "sudo systemsetup -setnetworktimeserver {IP}\nsudo systemsetup -setusingnetworktime on\nsntp {IP}",
+      "Android": "Настройки → Дата и время → Сервер NTP:\n{IP}",
+      "MikroTik": "/system ntp client set enabled=yes mode=unicast\n/system ntp client servers add address={IP}\n# Проверка:\n/system ntp client print",
+      "Cisco": "ntp server {IP} prefer\n! Проверка:\nshow ntp status\nshow ntp associations",
+      "Procurve": "timesync ntp\nntp unicast\nntp server {IP}\n# Проверка:\nshow ntp status",
+      "D-Link": "Настройки → Дата и время → NTP\nServer: {IP}\nPort: {PORT}"
+    },
+    "ucenter": {
+      "Linux": "# u-center2\nFile → Open Network Stream\ntcp://{IP}:{SER2_PORT}",
+      "Windows": "# u-center / u-center2\nFile → Receiver → Network Connection\ntcp://{IP}:{SER2_PORT}\n\nИли: File → Open Network Stream → tcp://{IP}:{SER2_PORT}",
+      "macOS": "# u-center2\nFile → Open Network Stream\ntcp://{IP}:{SER2_PORT}",
+      "Android": "NMEA поток приложением NMEA Reader:\ntcp://{IP}:{SER2_PORT}",
+      "MikroTik": "ser2net не применим для RouterOS",
+      "Cisco": "ser2net не применим для Cisco IOS",
+      "Procurve": "ser2net не применим для ProCurve",
+      "D-Link": "ser2net не применим для D-Link"
+    }
+  },
+
+  "server_messages": {
+    "gpsd_restarted": "gpsd перезапущен: %s",
+    "chrony_restarted": "chrony перезапущен: %s",
+    "mode_ntp_active": "Режим NTP активен\ngpsd: %s\nchrony: %s",
+    "mode_ucenter_active": "Режим u-center активен\nser2net: tcp://%s:%d\nu-center: File → Receiver → Network → tcp://%s:%d",
+    "service_error": "Сервисы запущены с ошибкой\ngpsd: %s\nchrony: %s",
+    "no_nmea_data": "Нет NMEA данных ни на одной скорости.\ngpsd перезапущен.",
+    "holdover_warning": "gpsd держит порт, но chrony уже в holdover режиме.\nОстановка gpsd небезопасна. Сначала восстановите синхронизацию.",
+    "ser2net_not_installed": "ser2net не установлен.\nУстановите: sudo apt install ser2net\nЗатем скопируйте конфиг: sudo cp /var/www/html/monitor/ser2net.yaml /etc/ser2net.yaml",
+    "port_not_open": "Порт %d не открыт. Проверьте настройки фаервола.",
+    "config_write_failed": "Не удалось создать конфиг ser2net. Проверьте права на запись в /etc/",
+    "device_info_header": "=== Устройства ===\n%s",
+    "processes_header": "\n\n=== Открыто процессами ===\n%s",
+    "baudrate_header": "\n\n=== Baudrate (из gpsd) ===\n%s",
+    "permissions_header": "\n\n=== Права www-data ===\n%s",
+    "none": "(никем не открыто)",
+    "baud_not_determined": "не определён",
+    "telegram_not_configured": "Не настроены bot_token или chat_id в config.json"
+  }
 }

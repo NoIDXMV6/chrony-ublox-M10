@@ -201,5 +201,46 @@
     "ok": "Confirm",
     "unit": "baud"
   },
-  "footer": "⭐ github.com/NoIDXMV6/chrony-ublox-M10"
+  "footer": "⭐ github.com/NoIDXMV6/chrony-ublox-M10",
+  "connection_instructions": {
+    "ntp": {
+      "Linux": "# chrony (recommended)\necho \"server {IP} iburst prefer\" >> /etc/chrony/chrony.conf\nsystemctl restart chrony\nchronyc sources -v\n\n# ntpd\necho \"server {IP} iburst\" >> /etc/ntp.conf\nsystemctl restart ntp",
+      "Windows": "# PowerShell (Administrator)\nw32tm /register\nnet start w32time\nw32tm /config /manualpeerlist:{IP} /syncfromflags:manual /reliable:YES /update\nw32tm /resync\nw32tm /query /status",
+      "macOS": "sudo systemsetup -setnetworktimeserver {IP}\nsudo systemsetup -setusingnetworktime on\nsntp {IP}",
+      "Android": "Settings → Date & Time → NTP Server:\n{IP}",
+      "MikroTik": "/system ntp client set enabled=yes mode=unicast\n/system ntp client servers add address={IP}\n# Check:\n/system ntp client print",
+      "Cisco": "ntp server {IP} prefer\n! Check:\nshow ntp status\nshow ntp associations",
+      "Procurve": "timesync ntp\nntp unicast\nntp server {IP}\n# Check:\nshow ntp status",
+      "D-Link": "Settings → Date & Time → NTP\nServer: {IP}\nPort: {PORT}"
+    },
+    "ucenter": {
+      "Linux": "# u-center2\nFile → Open Network Stream\ntcp://{IP}:{SER2_PORT}",
+      "Windows": "# u-center / u-center2\nFile → Receiver → Network Connection\ntcp://{IP}:{SER2_PORT}\n\nOr: File → Open Network Stream → tcp://{IP}:{SER2_PORT}",
+      "macOS": "# u-center2\nFile → Open Network Stream\ntcp://{IP}:{SER2_PORT}",
+      "Android": "NMEA stream via NMEA Reader:\ntcp://{IP}:{SER2_PORT}",
+      "MikroTik": "ser2net not applicable for RouterOS",
+      "Cisco": "ser2net not applicable for Cisco IOS",
+      "Procurve": "ser2net not applicable for ProCurve",
+      "D-Link": "ser2net not applicable for D-Link"
+    }
+  },
+  "server_messages": {
+    "gpsd_restarted": "gpsd restarted: %s",
+    "chrony_restarted": "chrony restarted: %s",
+    "mode_ntp_active": "NTP mode active\ngpsd: %s\nchrony: %s",
+    "mode_ucenter_active": "u-center mode active\nser2net: tcp://%s:%d\nu-center: File → Receiver → Network → tcp://%s:%d",
+    "service_error": "Services started with error\ngpsd: %s\nchrony: %s",
+    "no_nmea_data": "No NMEA data at any speed.\ngpsd restarted.",
+    "holdover_warning": "gpsd holds the port, but chrony is already in holdover mode.\nStopping gpsd is unsafe. Restore synchronization first.",
+    "ser2net_not_installed": "ser2net is not installed.\nInstall: sudo apt install ser2net\nThen copy config: sudo cp /var/www/html/monitor/ser2net.yaml /etc/ser2net.yaml",
+    "port_not_open": "Port %d is not open. Check firewall settings.",
+    "config_write_failed": "Failed to create ser2net config. Check write permissions to /etc/",
+    "device_info_header": "=== Devices ===\n%s",
+    "processes_header": "\n\n=== Opened by processes ===\n%s",
+    "baudrate_header": "\n\n=== Baudrate (from gpsd) ===\n%s",
+    "permissions_header": "\n\n=== www-data permissions ===\n%s",
+    "none": "(none)",
+    "baud_not_determined": "not determined",
+    "telegram_not_configured": "bot_token or chat_id not configured in config.json"
+  }
 }
