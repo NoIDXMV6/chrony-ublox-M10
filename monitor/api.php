@@ -240,15 +240,16 @@ function getGpsd() {
     $r = runCommand('timeout 5 gpspipe -w -n 20 2>/dev/null');
     $lines = array_filter(explode("\n", $r['output']));
 
-    $tpv = null;
-    $sky = null;
+    $tpv     = null;
+    $sky     = null;
+    $devices = null;
 
     foreach ($lines as $line) {
         $j = json_decode(trim($line), true);
         if (!is_array($j) || !isset($j['class'])) continue;
-        if ($j['class'] === 'TPV' && !$tpv) $tpv = $j;
-        if ($j['class'] === 'SKY' && !$sky) $sky = $j;
-        if ($tpv && $sky) break;
+        if ($j['class'] === 'TPV'     && !$tpv)     $tpv     = $j;
+        if ($j['class'] === 'SKY'     && !$sky)     $sky     = $j;
+        if ($j['class'] === 'DEVICES' && !$devices) $devices = $j;
     }
 
     $data['available'] = true;
@@ -292,15 +293,13 @@ function getGpsd() {
         ];
     }
 
-    // GNSS модуль — информация из gpsd DEVICES
-    foreach ($lines as $line) {
-        $j = json_decode(trim($line), true);
-        if (!is_array($j) || $j['class']!=='DEVICES') continue;
-        foreach ($j['devices']??[] as $dev) {
-            if (strpos($dev['path']??'','ttyAMA')===false) continue;
+    // GNSS модуль — информация из gpsd DEVICES (уже распознано в общем цикле)
+    if ($devices) {
+        foreach ($devices['devices'] ?? [] as $dev) {
+            if (strpos($dev['path'] ?? '', 'ttyAMA') === false) continue;
             $sub  = $dev['subtype']  ?? '';
             $sub1 = $dev['subtype1'] ?? '';
-            $gnss = ['driver'=>$dev['driver']??'','bps'=>$dev['bps']??0,'native'=>$dev['native']??0,'path'=>$dev['path']??''];
+            $gnss = ['driver'=>$dev['driver']??'','bps'=>(int)($dev['bps']??0),'native'=>$dev['native']??0,'path'=>$dev['path']??''];
             if (preg_match('/SW\s+(.+?),HW\s+(.+)/', $sub, $m)) {
                 $gnss['firmware'] = trim($m[1]);
                 $gnss['hardware'] = trim($m[2]);
@@ -308,21 +307,25 @@ function getGpsd() {
             foreach (explode(',', $sub1) as $p) {
                 if (str_starts_with($p,'FWVER='))   $gnss['fwver']   = substr($p,6);
                 if (str_starts_with($p,'PROTVER=')) $gnss['protver'] = substr($p,8);
-                if (str_contains($p,';')&&!str_contains($p,'=')) {
-                    $sys = explode(';',$p);
-                    if (count($sys)>2) $gnss['gnss_systems'] = $sys;
-                    else $gnss['augmentation'] = $sys;
+                if (str_contains($p,';') && !str_contains($p,'=')) {
+                    $sys = explode(';', $p);
+                    if (count($sys) > 2) $gnss['gnss_systems'] = $sys;
+                    else                 $gnss['augmentation']  = $sys;
                 }
             }
             $data['module'] = $gnss;
+            break;
         }
     }
 
-    // Baudrate порта
-    $stty = runCommand('stty -F /dev/ttyAMA0 2>/dev/null | head -1');
-    $baud = null;
-    if (preg_match('/speed (\d+) baud/', $stty['output'], $bm)) {
-        $baud = (int)$bm[1];
+    // Baudrate порта — берём из gpsd DEVICES (уже разобрано выше), не из stty
+    $baud = $data['module']['bps'] ?? null;
+    // Fallback: попробовать stty только если gpsd не дал данных
+    if (!$baud) {
+        $stty = runCommand('stty -F /dev/ttyAMA0 2>/dev/null | head -1');
+        if (preg_match('/speed (\d+) baud/', $stty['output'], $bm)) {
+            $baud = (int)$bm[1];
+        }
     }
     $data['uart_baud'] = $baud;
 
