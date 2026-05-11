@@ -3,7 +3,11 @@
 Полнофункциональная система мониторинга в реальном времени для Stratum 1 NTP сервера на Raspberry Pi с u-blox M10 GNSS модулем.
 
 <img width="1596" height="2147" alt="Screenshot_4" src="https://github.com/user-attachments/assets/84c2657b-0be1-4f37-aafa-4a3478902a1d" />
+
+
 <img width="723" height="600" alt="Screenshot_5" src="https://github.com/user-attachments/assets/f7ba10a5-9e1b-4629-9cd3-e4fcbf0d8efe" />
+
+
 <img width="722" height="259" alt="Screenshot_6" src="https://github.com/user-attachments/assets/72d0a789-d80a-4dfd-a317-53958e67262b" />
 
 
