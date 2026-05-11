@@ -1,0 +1,15 @@
+# NTP Monitor — www-data sudo rights
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chronyc
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl start gpsd
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop gpsd
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart gpsd
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl start gpsd.socket
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop gpsd.socket
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl start chrony
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop chrony
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart chrony
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl start ser2net
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop ser2net
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart ser2net
+www-data ALL=(ALL) NOPASSWD: /bin/stty
+www-data ALL=(ALL) NOPASSWD: /usr/bin/lsof
