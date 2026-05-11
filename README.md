@@ -5,19 +5,44 @@
 
 **Точность:** ~150–300 нс (PPS-дисциплинированный источник) · **Stratum:** 1
 
+**Мониторинг:** 🌐 [Веб-интерфейс](#веб-интерфейс-мониторинга) в реальном времени + REST API
+
 ---
 
 ## 📋 Содержание
 
+- [Быстрый старт](#быстрый-старт) — 5 минут до рабочей системы
 - [Схема подключения](#схема-подключения)
-- [Требования](#требования)
-- [Быстрый старт](#быстрый-старт)
 - [Использование скриптов](#использование-скриптов)
+- [Веб-интерфейс мониторинга](#веб-интерфейс-мониторинга) ⭐ NEW
 - [Конфигурация сервера](#конфигурация-сервера)
 - [Настройка клиентов](#настройка-клиентов)
-- [Мониторинг и проверка](#мониторинг-и-проверка)
-- [Диагностика и troubleshooting](#диагностика-и-troubleshooting)
-- [Полезные команды](#полезные-команды)
+- [Проверка и мониторинг](#проверка-и-мониторинг)
+- [Диагностика](#диагностика)
+
+---
+
+## 🚀 Быстрый старт
+
+### За 5 минут
+
+```bash
+# 1. На рабочем компьютере
+scp setup_ntp_server.sh root@<IP_RPi>:/root/
+
+# 2. На Raspberry Pi
+ssh root@<IP_RPi>
+sudo /root/setup_ntp_server.sh
+
+# 3. Перезагрузиться (обязательно!)
+sudo reboot
+
+# 4. Через 2-3 минуты проверить
+chronyc sources -v
+chronyc tracking
+```
+
+**Результат:** Stratum 1 NTP сервер готов! ✅
 
 ---
 
@@ -41,322 +66,197 @@ Pin 10 (GPIO15)  ◄───  TX
 | 8         | GPIO14 TXD  | → UART TX   | RX         |
 | 10        | GPIO15 RXD  | ← UART RX   | TX         |
 
-> ⚠️ **КРИТИЧНО:** Модуль питается от **3.3V**. Подключение к 5V (пины 2, 4) сгорит модуль!
-
+> ⚠️ **КРИТИЧНО:** Модуль питается от **3.3V**. Подключение к 5V сгорит модуль!
 > ⚠️ **Частая ошибка:** RX и TX часто путают. Если NMEA не идут — поменяй провода местами.
-
----
-
-## Требования
-
-### Оборудование
-- **Raspberry Pi 4** с Armbian Trixie 64-bit
-- **GNSS модуль** с PPS выходом (u-blox M10, M9N или аналог)
-- **Антенна GPS** с видом на небо (минимум 10° угла возвышения)
-- **Провода** дюпон 3.3V, GND, RX/TX/PPS (5 шт)
-- **Кабель USB-UART** для начальной конфигурации (опционально)
-
-### Программное обеспечение
-```bash
-# Основное
-Linux kernel 5.10+ (с поддержкой PPS-GPIO)
-Armbian Trixie 24.x
-Apache 2.4 или nginx
-PHP 7.4+
-
-# Пакеты (устанавливаются автоматически скриптом)
-- gpsd и gpsd-clients
-- chrony
-- pps-tools
-```
-
----
-
-## Быстрый старт
-
-### 1️⃣ Подготовка Raspberry Pi
-
-Если Armbian не установлена, загрузи образ:
-```bash
-# На рабочем компьютере
-wget https://www.armbian.com/download/[выбери модель RPi 4]
-sudo dd if=Armbian-official-*.img of=/dev/sdX bs=4M status=progress
-sync
-```
-
-Вставь SD карту в RPi 4, подключи питание и подожди 1-2 мин.
-
-### 2️⃣ Подключение по SSH
-
-```bash
-# Узнай IP (в роутере или через ARP)
-ssh root@<IP_RPi>
-# пароль: 1234
-```
-
-### 3️⃣ Копирование и запуск скрипта установки
-
-**Вариант A: Через SCP (рекомендуется)**
-```bash
-# На рабочем компьютере
-scp setup_ntp_server.sh root@<IP_RPi>:/root/
-
-# На RPi
-ssh root@<IP_RPi>
-chmod +x /root/setup_ntp_server.sh
-sudo /root/setup_ntp_server.sh
-```
-
-**Вариант B: Через curl**
-```bash
-ssh root@<IP_RPi>
-curl -fsSL https://your-server/setup_ntp_server.sh | sudo bash
-```
-
-### 4️⃣ Перезагрузка (ОБЯЗАТЕЛЬНО!)
-
-Скрипт попросит перезагрузиться. **ПЕРЕЗАГРУЗКА НЕОБХОДИМА:**
-- Отключение Bluetooth от UART
-- Подключение PPS оверлея GPIO4
-- Выход UART из режима консоли
-
-```bash
-sudo reboot
-# Подожди 2-3 минуты
-```
-
-### 5️⃣ Проверка после перезагрузки
-
-```bash
-# Устройства присутствуют
-ls /dev/ttyAMA0 /dev/pps0
-
-# NMEA данные идут (Ctrl+C для выхода)
-stty -F /dev/ttyAMA0 38400 raw && timeout 5 cat /dev/ttyAMA0
-
-# GPS фикс и спутники
-cgps -s
-
-# Статус Chrony (через 2-3 мин)
-chronyc sources -v
-chronyc tracking
-```
 
 ---
 
 ## Использование скриптов
 
-### setup_ntp_server.sh — Полная установка
+### setup_ntp_server.sh — Автоматическая установка
 
-**Что делает (9 шагов):**
-
-1. ✅ **Резервная копия** конфигов в `/root/ntp_setup_backup_YYYYMMDD_HHMMSS/`
-2. ✅ **Установка пакетов:** `gpsd`, `chrony`, `pps-tools`
-3. ✅ **Конфигурация `/boot/firmware/config.txt`:**
-   - `enable_uart=1` — включить UART на GPIO14/15
-   - `dtoverlay=disable-bt` — отключить BT от UART
-   - `dtoverlay=pps-gpio,gpiopin=4` — PPS на GPIO4
-4. ✅ **Освобождение UART от консоли:**
-   - Удалить `console=serial0` из `cmdline.txt`
-   - Отключить `serial-getty@ttyAMA0`
-5. ✅ **Отключение Bluetooth:**
-   - Disable `hciuart` и `bluetooth`
-6. ✅ **Создание udev правил** для `/dev/pps0`
-7. ✅ **Конфигурация gpsd:**
-   - `/etc/default/gpsd` с UART 38400 baud
-   - Добавление в группу `_chrony`
-8. ✅ **Конфигурация chrony:**
-   - GPS (NMEA через SHM) + PPS (высокоточный источник)
-   - Stratum 1 конфигурация
-   - Fallback на интернет серверы
-9. ✅ **Включение в автозапуск** через systemctl
+**Что делает:**
+- ✅ Резервное копирование конфигов
+- ✅ Установка пакетов (gpsd, chrony, pps-tools)
+- ✅ Конфигурация UART (отключение BT, освобождение от консоли)
+- ✅ Настройка PPS оверлея на GPIO4
+- ✅ Конфигурация gpsd для u-blox M10 (38400 baud)
+- ✅ Настройка chrony как Stratum 1 сервера
+- ✅ Создание systemd сервисов
 
 **Запуск:**
 ```bash
 sudo /root/setup_ntp_server.sh
 ```
 
-**Параметры (измени в начале скрипта):**
+**Параметры (в начале скрипта):**
 ```bash
 PPS_GPIO_PIN=4                      # GPIO пин PPS
 GPS_BAUDRATE=38400                 # Скорость UART
-ALLOW_SUBNET="192.168.0.0/16"      # Разрешённая подсеть
-NTP_FALLBACK="pool 2.debian.pool.ntp.org iburst"  # Fallback серверы
+ALLOW_SUBNET="192.168.0.0/16"      # Разрешённая подсеть NTP
+NTP_FALLBACK="pool 2.debian.pool.ntp.org iburst"
 ```
 
-**Время выполнения:** ~2-3 минуты  
-**Требует перезагрузку:** ✅ Да
+**Время:** ~2-3 минуты · **Требует перезагрузку:** ✅ Да
 
 ---
 
-### diagnose_ntp.sh — Диагностика и исправление
+### diagnose_ntp.sh — Диагностика и исправление ⭐ NEW
 
-**Назначение:** Проверить конфигурацию и автоматически исправить проблемы.
+**Назначение:** Проверить и автоматически исправить проблемы.
 
 **11 проверок:**
-
-1. ✅ **Ядро и система** — версия, архитектура, Armbian
-2. ✅ **Конфиг загрузки** — `config.txt`, `cmdline.txt`, UART, PPS
-3. ✅ **Устройства** — `/dev/ttyAMA0`, `/dev/pps0`
-4. ✅ **Автоопределение baudrate** ⭐ — тестирует 9600, 38400, 4800... и выбирает рабочий
-5. ✅ **Сервис baudrate** — создаёт `gps-baudrate.service` для гарантии
-6. ✅ **Сервисы** — статус gpsd и chrony
-7. ✅ **NMEA данные** — проверка что gpsd получает данные
-8. ✅ **PPS сигнал** — тест пульсирования на `/dev/pps0`
-9. ✅ **Права доступа** — www-data, sudoers для веб-мониторинга
-10. ✅ **Chrony синхронизация** — Stratum, выбор источника, makestep
-11. ✅ **Итоги** — кол-во найденных проблем и исправлено
+1. Ядро и система
+2. Конфиг загрузки (`config.txt`, `cmdline.txt`)
+3. Устройства (`/dev/ttyAMA0`, `/dev/pps0`)
+4. **Автоопределение baudrate** — тестирует и выбирает рабочий! 🎯
+5. Сервис автоустановки baudrate
+6. Статус сервисов (gpsd, chrony)
+7. NMEA данные от GPS
+8. PPS сигнал пульсирования
+9. Права доступа (для веб-мониторинга)
+10. Chrony синхронизация (Stratum, источник)
+11. Итоговый отчёт
 
 **Запуск:**
 ```bash
 sudo /root/diagnose_ntp.sh
 ```
 
-**Интерактивность:** Для каждой проблемы спрашивает `[y/N]`:
-```
-  ✗ enable_uart=1 отсутствует в /boot/firmware/config.txt
-  Добавить? [y/N]
+**Интерактивность:** Спрашивает `[y/N]` для каждого исправления.
+
+**Время:** ~1-2 минуты · **Требует перезагрузку:** ❌ Нет
+
+---
+
+## 🌐 Веб-интерфейс мониторинга
+
+**NEW!** Полнофункциональный веб-дашборд для мониторинга в реальном времени.
+
+### Установка
+
+```bash
+# Копировать файлы мониторинга
+sudo mkdir -p /var/www/html/monitor
+sudo cp monitor/*.php monitor/*.html monitor/*.json monitor/*.css /var/www/html/monitor/
+
+# Права доступа
+sudo chown -R www-data:www-data /var/www/html/monitor/
+sudo chmod 755 /var/www/html/monitor
+
+# Разрешения для www-data
+sudo cp monitor/www-ntp-monitor /etc/sudoers.d/www-ntp-monitor
+sudo chmod 440 /etc/sudoers.d/www-ntp-monitor
 ```
 
-**Пример вывода:**
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  4. Определение baudrate GNSS модуля
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    Baudrate 9600: 0 NMEA строк
-    Baudrate 38400: 12 NMEA строк     ✓ Найден!
-  
-  ✓ GNSS модуль отвечает на baudrate: 38400
-  ✓ gpsd настроен на правильный baudrate
+### Использование
+
+Открыть в браузере: `http://<IP_RPi>/monitor/`
+
+**Функции:**
+- 📊 **Dashboard** — метрики в реальном времени (Stratum, смещение, RMS offset)
+- 📡 **GPS/GNSS** — фикс, координаты, спутники (2D/3D)
+- 🛰️ **Карта неба (Skyplot)** — азимут и возвышение спутников
+- 📈 **График смещения** — история синхронизации
+- 🗺️ **Карта** — GPS координаты на OpenStreetMap
+- 🔧 **Управление** — перезагрузка gpsd/chrony, makestep
+- 🔍 **Диагностика** — NMEA данные, параметры UART
+- 📋 **Статистика** — sourcestats, клиенты, системные ресурсы
+
+### Конфигурация мониторинга
+
+Отредактировать `/var/www/html/monitor/config.json`:
+
+```json
+{
+  "monitor": {
+    "refresh_interval": 15,      // сек между обновлениями API
+    "theme": "auto",             // "dark" | "light" | "auto"
+    "theme_dark_from": "20:00",  // время переключения темы
+    "theme_light_from": "07:00"
+  },
+  "gnss": {
+    "device": "/dev/ttyAMA0",
+    "pps_device": "/dev/pps0",
+    "baudrate": 38400,           // должен совпадать с GPS модулем
+    "pps_gpio": 4
+  },
+  "telegram": {
+    "enabled": false,            // включить оповещения (опционально)
+    "bot_token": "YOUR_TOKEN",
+    "chat_id": "YOUR_CHAT_ID",
+    "alerts": {
+      "gpsd_down": true,
+      "chrony_down": true,
+      "pps_lost": true,
+      "offset_threshold_ms": 10
+    }
+  }
+}
 ```
 
-**Время выполнения:** ~1-2 минуты  
-**Требует перезагрузку:** ❌ Нет (в зависимости от исправлений)
+### REST API
 
-**Совет:** Запусти после первой перезагрузки, если что-то не работает.
+```bash
+# Получить все метрики
+curl http://192.168.1.100/monitor/api.php | jq .
+
+# Только tracking
+curl http://192.168.1.100/monitor/api.php | jq .tracking
+
+# Выполнить действие
+curl "http://192.168.1.100/monitor/action.php?action=makestep"
+curl "http://192.168.1.100/monitor/action.php?action=raw_port"
+curl "http://192.168.1.100/monitor/action.php?action=restart_gpsd"
+```
 
 ---
 
 ## Конфигурация сервера
 
-### 1. `/boot/firmware/config.txt` — Конфиг Raspberry Pi
+### 1. `/boot/firmware/config.txt` — Конфиг RPi
 
-Скрипт добавляет в конец:
 ```ini
-# === NTP SERVER SETUP ===
-enable_uart=1
-dtoverlay=disable-bt
-dtoverlay=pps-gpio,gpiopin=4
-# === END NTP SERVER SETUP ===
+enable_uart=1                    # UART на GPIO14/15
+dtoverlay=disable-bt             # BT не занимает UART
+dtoverlay=pps-gpio,gpiopin=4    # PPS на GPIO4 (пин 7)
 ```
 
-**Значения:**
-- `enable_uart=1` — включить UART (PL011) на GPIO14/15
-- `dtoverlay=disable-bt` — отключить BT от основного UART (чтобы не конфликтовал с GPS)
-- `dtoverlay=pps-gpio,gpiopin=4` — загрузить модуль PPS на GPIO4 (пин 7)
-
-**Если нужно изменить GPIO пин:**
-```bash
-sudo nano /boot/firmware/config.txt
-# Измени: dtoverlay=pps-gpio,gpiopin=17
-sudo reboot
-```
-
-### 2. `/boot/firmware/cmdline.txt` — Параметры ядра
-
-Скрипт **автоматически удаляет** `console=serial0,...` для освобождения UART.
-
-**Проверка:**
-```bash
-cat /boot/firmware/cmdline.txt
-# Не должно быть console=serial0 или console=ttyAMA0
-```
-
-### 3. `/etc/default/gpsd` — Конфигурация GPS демона
+### 2. `/etc/default/gpsd` — GPS демон
 
 ```bash
 START_DAEMON="true"
 USBAUTO="false"
 DEVICES="/dev/ttyAMA0 /dev/pps0"
-GPSD_OPTIONS="-n"
+GPSD_OPTIONS="-n"               # readonly
 ```
 
-**Параметры:**
-- `DEVICES="/dev/ttyAMA0 /dev/pps0"` — слушать UART GPS и PPS
-- `GPSD_OPTIONS="-n"` — readonly (не менять конфиг модуля)
-
-**Если нужно явно указать baudrate:**
-```bash
-sudo nano /etc/default/gpsd
-# Измени: GPSD_OPTIONS="-n -s 38400"
-sudo systemctl restart gpsd
-```
-
-### 4. `/etc/chrony/chrony.conf` — Конфигурация NTP (ГЛАВНАЯ!)
-
-Скрипт создаёт полную конфигурацию для **Stratum 1**:
+### 3. `/etc/chrony/chrony.conf` — NTP сервер (ГЛАВНАЯ!)
 
 ```bash
-# GPS NMEA через gpsd SHM (shared memory)
+# GPS NMEA через SHM
 refclock SHM 0 delay 0.5 refid GPS noselect
 
 # PPS — основной высокоточный источник
 refclock PPS /dev/pps0 lock GPS refid PPS precision 1e-7
 
-# Интернет fallback (когда нет GPS)
+# Интернет fallback
 pool 2.debian.pool.ntp.org iburst
 
-# Локальное время при потере всех источников
+# Локальное время при потере GPS
 local stratum 10
 
-# Разрешить клиентам (подсеть)
+# Разрешить клиентам
 allow 192.168.0.0/16
 
 # Быстрое выравнивание при старте
 makestep 1.0 3
 ```
 
-**Важные параметры:**
-
-| Параметр | Значение | Описание |
-|----------|----------|---------|
-| `refclock SHM 0` | GPS | NMEA время от gpsd |
-| `refclock PPS /dev/pps0` | PPS | Пульсирующий сигнал (наносекунды) |
-| `lock GPS` | на PPS | PPS привязана к GPS секунде |
-| `precision 1e-7` | на PPS | Заявленная точность 100 нс |
-| `noselect` | на GPS | GPS помечена дополнительным источником (lock для PPS) |
-| `allow` | подсеть | Какие клиенты могут запрашивать время |
-| `makestep 1.0 3` | параметр | Выправлять скачки до 1 сек, макс 3 раза при старте |
-
-**Если нужно изменить разрешённую подсеть:**
+**Если нужно изменить подсеть:**
 ```bash
 sudo nano /etc/chrony/chrony.conf
-
-# Замени:
-allow 192.168.0.0/16
-
-# На:
-allow 10.0.0.0/8
-allow 172.16.0.0/12
-# или для всех (небезопасно!):
-# allow 0.0.0.0/0
-
-sudo systemctl restart chrony
-```
-
-**Если нужно добавить fallback серверы:**
-```bash
-sudo nano /etc/chrony/chrony.conf
-
-# Замени:
-pool 2.debian.pool.ntp.org iburst
-
-# На:
-pool 0.debian.pool.ntp.org iburst
-pool 1.debian.pool.ntp.org iburst
-pool 2.debian.pool.ntp.org iburst
-server ntp.ubuntu.com iburst
-
+# Измени: allow 10.0.0.0/8
 sudo systemctl restart chrony
 ```
 
@@ -368,432 +268,193 @@ sudo systemctl restart chrony
 
 ```bash
 sudo nano /etc/chrony/chrony.conf
-```
 
-Добавь перед остальными серверами:
-```bash
-# Наш Stratum 1 сервер (с приоритетом)
+# Добавь:
 server 192.168.1.100 iburst prefer
-
-# Резервные серверы
-server 192.168.1.101 iburst
 pool 2.debian.pool.ntp.org iburst
-```
 
-**Параметры:**
-- `iburst` — быстрая синхронизация при старте (8 запросов за 2 сек)
-- `prefer` — отдать приоритет этому серверу
-
-**Применить:**
-```bash
+# Перезагрузи
 sudo systemctl restart chrony
-chronyc sources -v    # Проверить статус
-```
-
-**Ожидаемый результат:**
-```
-MS Name/IP address         Stratum Poll Reach LastRx Last sample
-================================================================
-#* 192.168.1.100              1    6   377     1  +234us[+456us] +/- 150us
-^- pool.ntp.org              2    6   377    23  -3ms[-3ms] +/- 45ms
-```
-
-### MikroTik (RouterOS)
-
-**Через WebFig:**
-1. IP → NTP Client
-2. Enabled ✓
-3. Mode: `unicast`
-4. Servers (вкладка): Add → `192.168.1.100`
-5. Apply
-
-**Через Terminal:**
-```bash
-/system ntp client
-set enabled=yes mode=unicast
-
-/system ntp client servers
-add address=192.168.1.100 comment="Stratum 1 GPS"
-
-# Проверка
-/system ntp client print
-# synced-server: 192.168.1.100
-# synced-stratum: 2
+chronyc sources -v
 ```
 
 ### Windows
 
-**Командная строка (от администратора):**
-
 ```cmd
-REM Проверить состояние
-sc query w32time
-
-REM Если не зарегистрирована
+REM От администратора
 w32tm /register
-
-REM Запустить
 net start w32time
-
-REM Настроить сервер
 w32tm /config /manualpeerlist:"192.168.1.100,0x8" /syncfromflags:manual /reliable:YES /update
-
-REM Синхронизировать
 w32tm /resync
-
-REM Проверить статус
 w32tm /query /status
 ```
 
-**Ожидаемый результат:**
+### MikroTik (RouterOS)
+
 ```
-Stratum: 2
-Reference ID: 192.168.1.100
-Last Successful Sync Time: 2026-05-10 12:34:56
-Leap Indicator: 0 (Normal)
+/system ntp client set enabled=yes mode=unicast
+/system ntp client servers add address=192.168.1.100
+/system ntp client print
 ```
 
 ### macOS
 
 ```bash
-# Проверить текущий сервер
-cat /etc/ntp.conf | grep server
-
-# Добавить наш сервер
-sudo nano /etc/ntp.conf
-
-# Добавь в начало:
-server 192.168.1.100 iburst prefer
-server 192.168.1.101 iburst
-
-# Перезагрузить ntpd
-sudo launchctl stop com.apple.xntpd
-sudo launchctl start com.apple.xntpd
-
-# Проверить (через 1-2 мин)
+sudo systemsetup -setnetworktimeserver 192.168.1.100
+sudo systemsetup -setusingnetworktime on
 ntpq -p
 ```
 
 ---
 
-## Мониторинг и проверка
+## Проверка и мониторинг
 
-### Проверка после первичной настройки
+### Обязательные проверки
 
-**1. Устройства присутствуют:**
+**1. Устройства:**
 ```bash
-ls -la /dev/ttyAMA0 /dev/pps0
-# crw-rw---- 1 root dialout 204,   64 (должны оба существовать)
+ls /dev/ttyAMA0 /dev/pps0
 ```
 
-**2. Модули загружены:**
-```bash
-lsmod | grep pps_gpio
-# pps_gpio               16384  0
-```
-
-**3. NMEA данные идут:**
+**2. NMEA данные:**
 ```bash
 timeout 5 cat /dev/ttyAMA0
-# $GPRMC,120530.123,A,5559.8889,N,03729.7777,E,...
-# $GPGGA,120530.123,5559.8889,N,03729.7777,E,...
+# $GPRMC, $GPGGA, $GPGSA — норма ✓
 ```
 
-**4. GPS имеет фикс (нужна антенна с видом на небо):**
+**3. GPS фикс:**
 ```bash
 cgps -s
-# MODE: 3D ✓
-# SAT: 08/13 (минимум 4 спутника для 3D)
+# MODE: 3D, SAT: 8/13 — норма ✓
 ```
 
-**5. PPS пульсирует (требуется GPS фикс!):**
+**4. PPS пульсирует:**
 ```bash
 sudo ppstest /dev/pps0
-# source 0 - assert 1715345945.000000157   ← должно быть .000... или .999...
-# source 0 - assert 1715345946.000000042
+# assert 1234567890.000... — норма ✓
 ```
 
-**Анализ:**
-- `.000000000` до `.000000500` = зелёный сигнал ✓
-- `.999999500` до `.999999999` = зелёный сигнал ✓
-- Если > ±500 мс = нет GPS фикса или проблема подключения
-
-**6. Chrony синхронизирован (через 2-3 мин):**
+**5. Chrony синхронизирован (через 2-3 мин):**
 ```bash
 chronyc sources -v
-# #* PPS                0    4   377     0  -159ns[+619ns] +/- 167ns
-#    ↑ звёздочка = выбранный источник
+# #* PPS — выбранный источник ✓
 
 chronyc tracking
-# Reference ID: 50505300 (PPS)
-# Stratum: 1
-# System time: 0.000000159 seconds fast (← должно быть < 1 мкс)
+# Stratum: 1 ✓
+# System time: < 1 мкс ✓
 ```
 
-**7. Клиенты синхронизированы:**
+**6. Клиенты синхронизированы:**
 ```bash
-# На клиенте (Linux)
+# На клиенте
 chronyc sources -v
+# должен видеть нашу RPi как source ✓
+```
 
-# На MikroTik
-/system ntp client print
+### Полезные команды
 
-# На Windows
-w32tm /query /status
+```bash
+# Мониторинг в реальном времени
+chronyc sources -v              # Источники
+chronyc tracking                # Точность
+chronyc activity                # Активные клиенты
+chronyc clients                 # Список подключённых
+
+# GPS/NMEA
+gpspipe -r -n 10               # 10 NMEA строк
+cgps -s                         # Интерактивный GPS статус
+
+# PPS
+sudo ppstest /dev/pps0
+sudo ppstest -c 10 /dev/pps0   # 10 импульсов
+
+# Логи
+sudo journalctl -u gpsd -n 50
+sudo journalctl -u chrony -n 50
+sudo journalctl -u chrony -f   # Живой просмотр
+
+# Сеть
+sudo netstat -an | grep 123
+sudo tcpdump -i any udp port 123
 ```
 
 ---
 
-## Диагностика и troubleshooting
+## Диагностика
 
-### ❌ Проблема: `/dev/pps0` не существует
+### ❌ `/dev/pps0` не существует
 
-**Причины:**
-- ❌ Модуль `pps_gpio` не загружен (перезагрузка не выполнена)
-- ❌ Неверно указан GPIO пин в `config.txt`
-- ❌ Пин GPIO4 занят чем-то другим
+**Причины:** Модуль не загружен, перезагрузка не выполнена.
 
 **Решение:**
 ```bash
-# 1. Проверить config.txt
-grep "pps-gpio" /boot/firmware/config.txt
-# Должна быть: dtoverlay=pps-gpio,gpiopin=4
-
-# 2. Проверить дмесг
-sudo dmesg | grep -i pps
-# Должно быть: pps_gpio: PPS GPIO initialized on GPIO4
-
-# 3. Если есть ошибка — исправить
-sudo nano /boot/firmware/config.txt
-
-# 4. Перезагрузиться
+sudo /root/diagnose_ntp.sh
+# Скрипт предложит добавить dtoverlay=pps-gpio
 sudo reboot
 ```
 
-### ❌ Проблема: `/dev/ttyAMA0` нет или занят
+### ❌ NMEA мусор или не идут
 
-**Причины:**
-- ❌ Bluetooth занял UART
-- ❌ Консоль слушает `console=serial0`
-- ❌ Сервис `serial-getty` ещё работает
+**Причины:** Неверный baudrate, RX/TX перепутаны.
 
 **Решение:**
 ```bash
-# 1. Проверить что занято
-ps aux | grep tty
-lsof /dev/ttyAMA0
-
-# 2. Отключить Bluetooth
-sudo systemctl disable hciuart bluetooth
-sudo systemctl stop hciuart bluetooth
-
-# 3. Проверить config.txt и cmdline.txt
 sudo /root/diagnose_ntp.sh
-# Скрипт предложит исправить автоматически
-
-# 4. Перезагрузиться
-sudo reboot
+# Скрипт автоопределит правильный baudrate и исправит
 ```
 
-### ❌ Проблема: NMEA мусор или не идут данные
+### ❌ Chrony показывает Stratum 16
 
-**Причины:**
-- ❌ Неверный baudrate (модуль на другой скорости)
-- ❌ RX/TX провода перепутаны
-- ❌ Модуль не подключен (нет питания 3.3V)
-- ❌ gpsd заблокирован
+**Причины:** GPS нет фикса, gpsd не пишет в SHM.
 
 **Решение:**
 ```bash
-# 1. Автоопределение baudrate
-sudo /root/diagnose_ntp.sh
-# Скрипт автоматически найдёт правильный baudrate
-
-# 2. Вручную проверить
-sudo systemctl stop gpsd
-
-for baud in 9600 38400 4800 19200 57600 115200; do
-  echo "=== Baudrate $baud ==="
-  sudo stty -F /dev/ttyAMA0 $baud raw
-  timeout 2 sudo cat /dev/ttyAMA0 | head -3
-done
-
-# 3. Если RX/TX перепутаны — поменять провода местами
-```
-
-### ❌ Проблема: GPS имеет фикс, но PPS не пульсирует
-
-**Признаки:**
-```bash
-sudo ppstest /dev/pps0
-# нет вывода или очень редко
-```
-
-**Причины:**
-- ❌ PPS провод отсоединен
-- ❌ GPIO4 занят чем-то другим
-- ❌ Модуль не настроен на выдачу PPS
-
-**Решение:**
-```bash
-# 1. Проверить провод GPIO4 визуально
-# 2. Проверить дмесг
-sudo dmesg | tail -30 | grep pps
-
-# 3. Проверить что GPIO4 свободен
-grep -r "gpio4\|GPIO4" /sys/kernel/debug/pinctrl/ 2>/dev/null
-
-# 4. Если всё ещё не работает — требуется настройка модуля u-blox
-# https://www.u-blox.com/en/product/u-center-linux
-```
-
-### ❌ Проблема: Chrony не синхронизируется (Stratum 10 или 16)
-
-**Признаки:**
-```bash
-chronyc tracking
-# Stratum: 10 или 16 (вместо 1 или 2)
-```
-
-**Причины:**
-- ❌ GPS нет фикса (спутники не видны)
-- ❌ gpsd не пишет в SHM (ошибка прав доступа)
-- ❌ PPS не пульсирует
-- ❌ chrony не может читать `/dev/pps0`
-
-**Решение:**
-```bash
-# 1. Проверить GPS фикс
+# 1. Проверить GPS
 cgps -s
-# Должно быть MODE: 3D и SAT: N/M (N > 4)
+# MODE должно быть 3D
 
-# 2. Проверить что gpsd пишет в SHM
-ls -la /dev/shm/ | grep gps
-
-# 3. Проверить что gpsd в группе _chrony
+# 2. Проверить права gpsd
 id gpsd | grep _chrony
-
 # Если нет:
 sudo usermod -aG _chrony gpsd
 sudo systemctl restart gpsd
 
-# 4. Перезагрузиться и подождать 3-5 минут
-sudo reboot
+# 3. Подождать 3-5 минут
 ```
 
-### ❌ Проблема: Клиенты не синхронизируются (Stratum 16)
+### ❌ Клиенты видят Stratum 16
 
-**Причины:**
-- ❌ Брандмауэр блокирует UDP порт 123
-- ❌ RPi недоступна в сети
-- ❌ Chrony не слушает сеть
-- ❌ Клиент в другой подсети
+**Причины:** Брандмауэр, RPi недоступна, chrony не слушает.
 
 **Решение:**
 ```bash
-# На RPi:
-
-# 1. Проверить что chrony слушает
+# На RPi
+sudo ufw allow 123/udp
 sudo netstat -an | grep 123
 # LISTEN 0.0.0.0:123
 
-# 2. Проверить брандмауэр
-sudo ufw status
-sudo ufw allow 123/udp
-
-# 3. Проверить IP и доступность
-hostname -I
-ping <IP_RPi>  # с клиента
-
-# На клиенте:
-
-# 4. Проверить что может достичь RPi
+# На клиенте
 ping <IP_RPi>
-
-# 5. Проверить config
-cat /etc/chrony/chrony.conf | grep server
-
-# 6. Перезагрузить chrony
-sudo systemctl restart chrony
-sleep 2
 chronyc sources -v
 ```
 
 ---
 
-## Полезные команды
-
-**На Raspberry Pi (сервер):**
-
-```bash
-# Основной статус
-chronyc sources -v              # Источники времени
-chronyc tracking                # Точность синхронизации
-chronyc activity                # Активные клиенты
-chronyc clients                 # Список подключённых клиентов
-
-# GPS/NMEA
-gpspipe -r -n 10               # Читать NMEA (10 строк)
-gpspipe -r                      # Постоянно читать (Ctrl+C для выхода)
-cgps -s                         # Интерактивный GPS статус
-
-# PPS
-sudo ppstest /dev/pps0         # Тест PPS сигнала
-sudo ppstest -c 10 /dev/pps0   # 10 импульсов и выход
-
-# Логи
-sudo journalctl -u gpsd -n 50      # Последние 50 строк gpsd
-sudo journalctl -u chrony -n 50    # Последние 50 строк chrony
-sudo journalctl -u chrony -f       # Живой просмотр (Ctrl+C)
-
-# Сеть
-sudo netstat -an | grep 123         # Прослушивание порта 123
-sudo tcpdump -i any udp port 123    # Перехватить NTP пакеты
-
-# Модули
-lsmod | grep pps                    # Загруженные модули PPS
-```
-
-**На клиенте (Linux):**
-
-```bash
-chronyc sources -v
-chronyc tracking
-chronyc activity
-
-ping <IP_RPi>
-sudo tcpdump -i any udp port 123
-```
-
-**На MikroTik:**
-
-```
-/system ntp client print
-/system ntp client servers print
-```
-
----
-
-## Чек-лист первичной настройки
+## Чек-лист установки
 
 **Перед запуском setup_ntp_server.sh:**
-- [ ] Raspberry Pi 4 загружена и доступна по SSH
-- [ ] GNSS модуль физически подключен (VCC, GND, TX, RX, PPS)
+- [ ] Armbian загружена и доступна по SSH
+- [ ] GNSS модуль подключен (VCC, GND, TX, RX, PPS)
 - [ ] Антенна установлена с видом на небо
 
-**После запуска setup_ntp_server.sh:**
-- [ ] Скрипт завершился без ошибок
-- [ ] Резервные копии сохранены
+**После установки:**
 - [ ] Система перезагружена
-
-**После первой перезагрузки (3-5 мин):**
 - [ ] `/dev/ttyAMA0` существует
 - [ ] `/dev/pps0` существует
 - [ ] NMEA данные идут
 - [ ] GPS имеет 3D фикс
-- [ ] PPS пульсирует
 
-**Через 5-10 мин:**
+**Через 5-10 минут:**
 - [ ] `chronyc sources -v` показывает `#* PPS`
 - [ ] `chronyc tracking` показывает `Stratum: 1`
 - [ ] RMS offset < 1 мкс
@@ -801,63 +462,7 @@ sudo tcpdump -i any udp port 123
 **Сеть:**
 - [ ] Клиенты пингуют RPi
 - [ ] UDP 123 открыт
-- [ ] Клиенты синхронизируются
-
----
-
-## Мониторинг
-
-### Apache + PHP веб-интерфейс
-
-Если установлен Apache + PHP, можно добавить веб-мониторинг:
-
-```bash
-sudo nano /etc/sudoers.d/chrony-web
-```
-
-Содержимое:
-```
-www-data ALL=(ALL) NOPASSWD: /usr/bin/chronyc
-www-data ALL=(ALL) NOPASSWD: /bin/systemctl
-```
-
-```bash
-sudo chmod 440 /etc/sudoers.d/chrony-web
-```
-
-Скопировать файлы мониторинга (если есть):
-```bash
-sudo cp monitor/* /var/www/html/monitor/
-sudo chown -R www-data:www-data /var/www/html/monitor/
-```
-
-Открыть в браузере: `http://<IP_RPi>/monitor/`
-
----
-
-## Откат конфигурации
-
-Если что-то сломалось:
-
-```bash
-# Найти резервную копию
-ls -la /root/ntp_setup_backup_*/
-
-# Вернуть config.txt
-sudo cp /root/ntp_setup_backup_20260510_*/config.txt.bak \
-        /boot/firmware/config.txt
-
-# Вернуть gpsd конфиг
-sudo cp /root/ntp_setup_backup_20260510_*/gpsd.bak \
-        /etc/default/gpsd
-
-# Вернуть chrony конфиг
-sudo cp /root/ntp_setup_backup_20260510_*/chrony.conf.bak \
-        /etc/chrony/chrony.conf
-
-# Перезагрузиться
-sudo reboot
-```
+- [ ] Клиенты синхронизируются с RPi
 
 ---
 
@@ -874,38 +479,95 @@ MS Name/IP address    Stratum Poll Reach LastRx Last sample
 $ chronyc tracking
 Reference ID    : 50505300 (PPS)
 Stratum         : 1
-System time     : 0.000000477 seconds fast of NTP time
-Last offset     : -0.000000015 seconds
+System time     : 0.000000159 seconds fast of NTP time
 RMS offset      : 0.000000098 seconds
 ```
 
 ---
 
-## 📱 Поддержка
+## 📁 Структура проекта
 
-Если есть проблемы:
+```
+.
+├── README.md                    # Главная документация (ты здесь)
+├── LICENSE                      # MIT лицензия
+├── setup_ntp_server.sh         # Автоматическая установка
+├── diagnose_ntp.sh             # Диагностика и исправление ⭐ NEW
+└── monitor/                     # Веб-интерфейс мониторинга ⭐ NEW
+    ├── README.md               # Документация мониторинга
+    ├── api.php                 # REST API (сбор метрик)
+    ├── action.php              # Выполнение команд
+    ├── index.html              # Веб-дашборд
+    ├── style.css               # Стили (светлая/тёмная тема)
+    ├── monitor.js              # JavaScript логика
+    ├── config.json             # Конфигурация
+    └── www-ntp-monitor         # Sudoers файл для Apache/nginx
+```
 
-1. **Запусти диагностический скрипт:**
-   ```bash
-   sudo /root/diagnose_ntp.sh
-   ```
+---
 
-2. **Сохрани логи:**
-   ```bash
-   sudo journalctl -u gpsd -n 100 > ~/gpsd.log
-   sudo journalctl -u chrony -n 100 > ~/chrony.log
-   ```
+## 🔐 Безопасность
 
-3. **Откройте issue на GitHub** с логами и описанием проблемы
+### Ограничить доступ к веб-мониторингу
+
+**Apache:**
+```apache
+<Directory /var/www/html/monitor>
+    Require ip 192.168.1.0/24
+    # или
+    Require host mynetwork.local
+</Directory>
+```
+
+**nginx:**
+```nginx
+location /monitor/ {
+    allow 192.168.1.0/24;
+    deny all;
+}
+```
+
+### HTTPS (Let's Encrypt)
+
+```bash
+sudo apt install certbot python3-certbot-apache
+sudo certbot --apache -d ntp.example.com
+# Автоматически обновляется
+```
+
+---
+
+## 📞 Поддержка
+
+**Если что-то не работает:**
+
+```bash
+# 1. Запусти диагностику
+sudo /root/diagnose_ntp.sh
+
+# 2. Сохрани логи
+sudo journalctl -u gpsd -n 100 > ~/gpsd.log
+sudo journalctl -u chrony -n 100 > ~/chrony.log
+chronyc sources -v > ~/chrony_sources.txt
+
+# 3. Откройте issue на GitHub с логами
+```
+
+**Ссылки:**
+- 🐛 [GitHub Issues](https://github.com/NoIDXMV6/chrony-ublox-M10/issues)
+- 📖 [Документация Chrony](https://chrony.tuxfamily.org/)
+- 📖 [Документация gpsd](https://gpsd.gitlab.io/gpsd/)
+- 📖 [u-blox M10 datasheet](https://www.u-blox.com/en/product/zed-m10-module)
 
 ---
 
 ## 📄 Лицензия
 
-Проект распространяется под лицензией **MIT**. Смотри [LICENSE](LICENSE).
+MIT License — используй как угодно в своих проектах.
 
 ---
 
-**Версия:** 2.0.0 · **Обновлено:** 2026-05-10  
+**Версия:** 2.1.0 · **Обновлено:** 2026-05-10  
 **Автор:** NoIDXMV6 · **Язык:** Русский
 
+⭐ Если помогла — поставь звезду на [GitHub](https://github.com/NoIDXMV6/chrony-ublox-M10)!
