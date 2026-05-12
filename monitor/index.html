@@ -58,7 +58,7 @@
       <div class="logo">NTP<span>//</span>MON</div>
       <div class="hostname" id="h-hostname">—</div>
       <div class="services" id="h-services"></div>
-      <div id="h-tg-status" style="font-family:var(--mono);font-size:.6rem;color:var(--text3)"></div>
+      <span id="h-tg-status" class="svc-pill off" style="display:none;"><span style="width:6px;height:6px;border-radius:50%;background:var(--red);display:inline-block"></span> TG</span>
       <div id="h-mode" class="mode-badge ntp">⏱ NTP</div>
     </div>
     <div class="header-right">
@@ -87,7 +87,8 @@
             <button class="btn btn-warn"    onclick="doAction('makestep','repair-output')" id="btn-makestep">⏱ Принудительная синхронизация</button>
             <button class="btn btn-primary" onclick="doAction('restart_gpsd','repair-output')" id="btn-restart-gpsd">↺ gpsd</button>
             <button class="btn btn-primary" onclick="doAction('restart_chrony','repair-output')" id="btn-restart-chrony">↺ chrony</button>
-          </div>
+            <button class="btn btn-danger" onclick="doAction('hard_reset_gnss','repair-output')" id="btn-hard-reset">⚡ Hard Reset GNSS</button>
+	  </div>
           <div id="repair-output" class="repair-output">Готов к работе...</div>
         </div>
         <div>

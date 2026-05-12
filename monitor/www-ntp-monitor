@@ -1,3 +1,4 @@
+# NTP Monitor — разрешения для веб-сервера
 # NTP Monitor — www-data sudo rights
 www-data ALL=(ALL) NOPASSWD: /usr/bin/chronyc
 www-data ALL=(ALL) NOPASSWD: /bin/systemctl start gpsd
@@ -13,3 +14,6 @@ www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop ser2net
 www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart ser2net
 www-data ALL=(ALL) NOPASSWD: /bin/stty
 www-data ALL=(ALL) NOPASSWD: /usr/bin/lsof
+www-data ALL=(ALL) NOPASSWD: /bin/sed
+www-data ALL=(ALL) NOPASSWD: /usr/bin/fuser
+www-data ALL=(ALL) NOPASSWD: /usr/local/bin/ntp-watchdog.sh --force-reset

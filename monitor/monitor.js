@@ -285,9 +285,15 @@ async function fetchTelegramStatus() {
     const d  = await fetchJSON(`${ACTION}?action=telegram_status`);
     const el = $('h-tg-status');
     if (!el) return;
-    el.textContent = d.enabled ? t('header.telegram_on', '✓ TG') : t('header.telegram_off', '');
-    el.title       = d.enabled ? `Telegram включён, proxy: ${d.proxy}` : 'Telegram отключён';
-    el.style.color = d.enabled ? 'var(--green)' : 'var(--text3)';
+    
+    if (d.enabled) {
+      el.className = 'svc-pill on';
+      el.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block"></span> ' + t('header.telegram_on', '✓ TG');
+    } else {
+      el.className = 'svc-pill off';
+      el.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:var(--red);display:inline-block"></span> ' + t('header.telegram_off', '✗ TG');
+    }
+    el.style.display = '';
   } catch(e) {}
 }
 
@@ -1013,14 +1019,32 @@ async function saveConfig() {
   const raw    = $('config-editor')?.value;
   const status = $('config-status');
   if (!raw || !status) return;
+
+  // Проверяем JSON
   try { JSON.parse(raw); } catch(e) {
-    status.style.color = 'var(--red)'; status.textContent = t('popup_settings.json_error', 'Ошибка JSON: ') + e.message; return;
+    status.style.color = 'var(--red)';
+    status.textContent = t('popup_settings.json_error', 'Ошибка JSON: ') + e.message;
+    return;
   }
+
+  // Запрашиваем пароль
+  const password = await getAuthPassword();
+  if (!password) return;   // отмена
+
+  // Блокируем кнопки на время запроса
+  document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+
   try {
-    const d = await postJSON(`${ACTION}?action=config_write`, raw);
+    let url = `${ACTION}?action=config_write&auth_pass=${encodeURIComponent(password)}`;
+    const d = await postJSON(url, raw);
     status.style.color  = d.success ? 'var(--green)' : 'var(--red)';
     status.textContent  = d.output || (d.success ? t('popup_settings.saved', 'Сохранено') : t('popup_settings.error', 'Ошибка'));
-  } catch(e) { status.style.color = 'var(--red)'; status.textContent = t('popup_settings.error', 'Ошибка') + ': ' + e.message; }
+  } catch(e) {
+    status.style.color = 'var(--red)';
+    status.textContent = t('popup_settings.error', 'Ошибка') + ': ' + e.message;
+  }
+
+  document.querySelectorAll('.btn').forEach(b => b.disabled = false);
 }
 
 async function testTelegram() {
@@ -1121,7 +1145,7 @@ async function doAction(action, outId) {
   const el = $(outId);
   if (!el) return;
   
-  const needsAuth = ['makestep', 'restart_gpsd', 'restart_chrony', 'switch_mode', 'config_write'];
+  const needsAuth = ['makestep', 'restart_gpsd', 'restart_chrony', 'switch_mode', 'config_write', 'hard_reset_gnss'];
   
   let password = null;
   if (needsAuth.includes(action)) {

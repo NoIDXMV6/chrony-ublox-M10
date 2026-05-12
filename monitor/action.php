@@ -380,7 +380,7 @@ function actionTelegramStatus() {
 
 $needsAuth = [
     'makestep', 'restart_gpsd', 'restart_chrony',
-    'switch_mode', 'config_write',
+    'switch_mode', 'config_write', 'hard_reset_gnss',
 ];
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
@@ -428,6 +428,16 @@ switch ($action) {
         $s = trim(run('systemctl is-active chrony')['out']);
         $s==='active' ? ok(__('chrony_restarted', $s)) : err("chrony: {$s}");
         break;
+
+    case 'hard_reset_gnss':
+        // Отправляем сигнал reload сервису watchdog – он выполнит --force-reset
+	$r = run('sudo systemctl reload ntp-watchdog.service');
+        if ($r['code'] === 0) {
+	    ok(__('hard_reset_success'));
+        } else {
+	    err(__('hard_reset_fail'));
+        }
+	break;
 
     case 'raw_port':
         actionRawPort();

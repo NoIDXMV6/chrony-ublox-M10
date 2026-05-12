@@ -1,51 +1,67 @@
 {
-  "monitor": {
-    "refresh_interval": 15,
-    "theme": "auto",
-    "theme_dark_from": "20:00",
-    "theme_light_from": "07:00",
-    "title": "NTP Monitor"
-  },
-  "server": {
-    "hostname": "",
-    "ntp_port": 123,
-    "allow_subnet": "192.168.0.0/16"
-  },
-  "gnss": {
-    "device": "/dev/ttyAMA0",
-    "pps_device": "/dev/pps0",
-    "baudrate": 9600,
-    "pps_gpio": 4
-  },
-  "map": {
-    "enabled": true,
-    "zoom": 14,
-    "tile_server": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-  },
-  "telegram": {
-    "enabled": false,
-    "bot_token": "TOKEN",
-    "chat_id": "ID",
-    "proxy_enabled": true,
-    "proxy_host": "http://HOST",
-    "proxy_port": PORT,
-    "proxy_user": "USER",
-    "proxy_pass": "PASS",
-    "alerts": {
-      "gpsd_down": true,
-      "chrony_down": true,
-      "pps_lost": true,
-      "stratum_change": true,
-      "offset_threshold_ms": 10
+    "monitor": {
+        "refresh_interval": 15,
+        "theme": "auto",
+        "theme_dark_from": "20:00",
+        "theme_light_from": "07:00",
+        "title": "NTP Monitor"
+    },
+    "server": {
+        "hostname": "",
+        "ntp_port": 123,
+        "allow_subnet": "192.168.0.0/16"
+    },
+    "gnss": {
+        "device": "/dev/ttyAMA0",
+        "pps_device": "/dev/pps0",
+        "baudrate": 9600,
+        "pps_gpio": 4
+    },
+    "map": {
+        "enabled": true,
+        "zoom": 14,
+        "tile_server": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    },
+    "telegram": {
+        "enabled": true,
+        "bot_token": "7983961628:AAEHPjKC0_PxAj-lHKs73n4uQuxua7ziKZA",
+        "chat_id": "-4784720426",
+        "proxy_enabled": true,
+        "proxy_host": "http://from.diligence.life",
+        "proxy_port": 43673,
+        "proxy_user": "v38a6tPUMU",
+        "proxy_pass": "79GgVTzzQO",
+        "alerts": {
+            "gpsd_down": true,
+            "chrony_down": true,
+            "pps_lost": true,
+            "stratum_change": true,
+            "offset_threshold_ms": 10
+        }
+    },
+    "ser2net": {
+        "port": 2000,
+        "baudrate": 9600,
+        "baudrate_options": [
+            4800,
+            9600,
+            19200,
+            38400,
+            57600,
+            115200,
+            230400,
+            460800,
+            921600
+        ]
+    },
+    "languages": {
+        "ru": {
+            "name": "Русский",
+            "file": "ru_locale.txt"
+        },
+        "en": {
+            "name": "English",
+            "file": "en_locale.txt"
+        }
     }
-  },
-  "ser2net": {
-    "port": 2000,
-    "baudrate": 9600,
-    "baudrate_options": [4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600]
-  },
-  "languages": {
-    "ru": { "name": "Русский", "file": "ru_locale.txt" },
-    "en": { "name": "English", "file": "en_locale.txt" }
-  }
 }
