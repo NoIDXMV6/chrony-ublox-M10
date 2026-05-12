@@ -305,7 +305,7 @@ curl "http://192.168.1.10/monitor/action.php?action=makestep&auth_pass=secret" |
 - Убедитесь, что gpsd запущен с флагом `-s <скорость>` (см. `/etc/default/gpsd`).
 
 ---
-
+## Структура файлов  
 monitor/  
 ├── index.html # Разметка интерфейса  
 ├── monitor.js # Клиентская логика  
@@ -333,5 +333,3 @@ monitor/
 **Автор:** @NoIDXMV6  
 **Репо:** [chrony-ublox-M10](https://github.com/NoIDXMV6/chrony-ublox-M10)  
 **Статус:** ✅ Актуально — мультиязычность, аутентификация, u‑center, watchdog, аппаратный сброс.
-
-## Структура файлов
