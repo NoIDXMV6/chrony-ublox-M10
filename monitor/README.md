@@ -101,18 +101,18 @@ Raspberry Pi 4 выполняет роль сервера времени (Stratu
 
 ### Быстрая установка (рекомендуется)
 
-'''bash
+```bash
 git clone https://github.com/NoIDXMV6/chrony-ublox-M10.git
 cd chrony-ublox-M10
 sudo bash install.sh
-'''
+```
 
 Инсталлятор запросит основные параметры (порт ser2net, скорость UART, пароль администратора, тип веб‑сервера) и выполнит полную настройку.
 
 ### Ручная установка
 
 1. **Скопируйте все файлы** в `/var/www/html/monitor/`.
-   '''bash
+   ```bash
    sudo mkdir -p /var/www/html/monitor
    sudo cp *.php *.html *.js *.json *.css *.txt *.svg *.sh /var/www/html/monitor/
    sudo cp -r leaflet/ /var/www/html/monitor/   # если Leaflet лежит локально
@@ -120,26 +120,26 @@ sudo bash install.sh
    sudo find /var/www/html/monitor -type d -exec chmod 755 {} \;
    sudo find /var/www/html/monitor -type f -exec chmod 644 {} \;
    sudo chmod 600 /var/www/html/monitor/config.json
-   '''
+   ```
 
 2. **Установите пароль администратора.**
-   '''bash
+   ```bash
    cd /var/www/html/monitor
    sudo bash setup_auth.sh
-   '''
+   ```
 
 3. **Настройте права sudo** для пользователя `www-data` (создайте файл `/etc/sudoers.d/www-ntp-monitor` с содержимым, приведённым в документации).
 
 4. **Настройте веб‑сервер** (Apache или nginx) – примеры конфигурации приведены ниже.
 
 5. **(Опционально) Активируйте watchdog.**
-   '''bash
+   ```bash
    sudo cp watchdog/ntp-watchdog.sh /usr/local/bin/
    sudo chmod +x /usr/local/bin/ntp-watchdog.sh
    sudo cp watchdog/ntp-watchdog.service /etc/systemd/system/
    sudo systemctl daemon-reload
    sudo systemctl enable --now ntp-watchdog.service
-   '''
+   ```
 
 ---
 
@@ -171,17 +171,17 @@ sudo bash install.sh
 
 ### Основной endpoint
 
-'''bash
+```bash
 GET /monitor/api.php
-'''
+```
 Возвращает полный JSON со всеми метриками.
 
 ### Action endpoint
 
-'''bash
+```bash
 GET /monitor/action.php?action=<ACTION>
 POST /monitor/action.php (в body: action=<ACTION>)
-'''
+```
 
 Для действий, требующих аутентификации, необходимо передать параметр `auth_pass=<пароль>`.
 
@@ -196,27 +196,27 @@ POST /monitor/action.php (в body: action=<ACTION>)
 
 **Примеры запросов:**
 
-'''bash
+```bash
 curl http://192.168.1.10/monitor/api.php | jq .
 curl "http://192.168.1.10/monitor/action.php?action=makestep&auth_pass=secret" | jq .
-'''
+```
 
 **Пример успешного ответа:**
-'''json
+```json
 {
   "success": true,
   "output": "200 OK\nClock was stepped by 0.000000042 seconds"
 }
-'''
+```
 
 **Пример ответа при ошибке аутентификации:**
-'''json
+```json
 {
   "success": false,
   "error": "Требуется пароль",
   "auth_required": true
 }
-'''
+```
 
 ---
 
