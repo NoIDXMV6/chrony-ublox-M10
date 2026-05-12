@@ -240,7 +240,7 @@
     "mode_ucenter_active": "u-center mode active\nser2net: tcp://%s:%d\nu-center: File → Receiver → Network → tcp://%s:%d",
     "service_error": "Services started with error\ngpsd: %s\nchrony: %s",
     "hard_reset_success": "Hardware reset completed.",
-    "hard_reset_fail": "Hardware reset unsuccesful. Check GNSS status."    
+    "hard_reset_fail": "Hardware reset unsuccesful. Check GNSS status.",    
     "no_nmea_data": "No NMEA data at any speed.\ngpsd restarted.",
     "holdover_warning": "gpsd holds the port, but chrony is already in holdover mode.\nStopping gpsd is unsafe. Restore synchronization first.",
     "ser2net_not_installed": "ser2net is not installed.\nInstall: sudo apt install ser2net\nThen copy config: sudo cp /var/www/html/monitor/ser2net.yaml /etc/ser2net.yaml",
