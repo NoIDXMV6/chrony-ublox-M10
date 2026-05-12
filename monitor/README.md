@@ -279,9 +279,9 @@ curl "http://192.168.1.10/monitor/action.php?action=makestep&auth_pass=secret" |
 Логи watchdog: `journalctl -u ntp-watchdog -f`.  
 ### Схема подключения  
 Raspberry Pi GPIO23 (Pin 16) ─── Резистор 10kΩ ─── GND  
-                                │  
-                                ├── Затвор MOSFET  
-                                │  
+                              │  
+                              ├── Затвор MOSFET  
+                              │  
 Модуль GNSS VCC ─── Исток MOSFET ─── Сток MOSFET ─── 3.3V (Pin 1)  
 
 ---
