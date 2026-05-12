@@ -241,7 +241,7 @@
     "mode_ucenter_active": "Режим u-center активен\nser2net: tcp://%s:%d\nu-center: File → Receiver → Network → tcp://%s:%d",
     "service_error": "Сервисы запущены с ошибкой\ngpsd: %s\nchrony: %s",
     "hard_reset_success": "Аппаратный сброс выполнен.",
-    "hard_reset_fail": "Сброс не удался. Проверьте состояние модуля."
+    "hard_reset_fail": "Сброс не удался. Проверьте состояние модуля.",
     "no_nmea_data": "Нет NMEA данных ни на одной скорости.\ngpsd перезапущен.",
     "holdover_warning": "gpsd держит порт, но chrony уже в holdover режиме.\nОстановка gpsd небезопасна. Сначала восстановите синхронизацию.",
     "ser2net_not_installed": "ser2net не установлен.\nУстановите: sudo apt install ser2net\nЗатем скопируйте конфиг: sudo cp /var/www/html/monitor/ser2net.yaml /etc/ser2net.yaml",
