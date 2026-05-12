@@ -9,10 +9,14 @@
 <img width="723" height="600" alt="Screenshot_5" src="https://github.com/user-attachments/assets/f7ba10a5-9e1b-4629-9cd3-e4fcbf0d8efe" />  
 <img width="722" height="259" alt="Screenshot_6" src="https://github.com/user-attachments/assets/72d0a789-d80a-4dfd-a317-53958e67262b" />  
 
-# NTP Monitor — Веб-интерфейс мониторинга Stratum 1 сервера
-
-Полнофункциональная система мониторинга в реальном времени для Stratum 1 NTP сервера на Raspberry Pi с u‑blox M10 GNSS модулем.  
-Поддерживает мультиязычность, защищённое управление сервисами и гибкую настройку.
+Полнофункциональная система мониторинга в реальном времени для Stratum 1 NTP-сервера на базе Raspberry Pi с GNSS-модулем u‑blox M10.  
+Ключевые особенности:  
+- **Мультиязычный интерфейс** (русский / английский) с динамической сменой языка  
+- **Защищённое управление** — парольная аутентификация для всех административных действий  
+- **Поддержка u‑center** через ser2net с выбором скорости порта  
+- **Автоматический сброс GNSS-модуля** (watchdog) и кнопка «Hard Reset GNSS»  
+- **Мгновенное отображение метрик** Stratum 1: смещение, RMS, GPS-координаты, спутники, SNR  
+- **Адаптивная тёмная/светлая тема** с авто‑переключением по времени суток  
 
 ---
 
@@ -28,198 +32,132 @@
 8. [Конфигурация](#конфигурация)
 9. [Тема оформления](#тема-оформления)
 10. [Безопасность](#безопасность)
-11. [Решение проблем](#решение-проблем)
+11. [Watchdog и аппаратный сброс](#watchdog-и-аппаратный-сброс)
+12. [Решение проблем](#решение-проблем)
 
 ---
 
 ## Архитектура системы
 
-```
-┌────────────────────────────────────────────────────┐
-│                    Raspberry Pi 4                  │
-│                                                    │
-│  ┌─────────┐  ┌───────────┐  ┌──────────────────┐  │
-│  │ gpsd    │  │  chrony   │  │  Apache + PHP    │  │
-│  │ ────────│  │ ──────────│  │ ─────────────────│  │
-│  │• GNSS   │  │• NTP      │  │• REST API        │  │
-│  │• PPS    │  │  daemon   │  │• Live Web UI     │  │
-│  └────┬────┘  └────┬──────┘  │• Action control  │  │
-│       │            │         └────────┬─────────┘  │
-│  /dev/ttyAMA0  /dev/pps0        :80/api.php        │
-│  /run/shm      chronyc          :80/action.php     │
-│                                 :80/index.html     │
-│                                                    │
-└────────────────────────────────────────────────────┘
-       ▲                                      │
-       │                                      │
-   GNSS модуль                         LAN клиенты (браузеры)
-   (UART + PPS)                        NTP клиенты
-```
+Raspberry Pi 4 выполняет роль сервера времени (Stratum 1) и веб‑интерфейса.  
+Основные компоненты:
 
-Программные компоненты размещены на Raspberry Pi 4 и взаимодействуют по следующей схеме:
-
-- **gpsd** получает данные от GNSS‑модуля (UART) и сохраняет их в SHM.
-- **chrony** использует PPS‑сигнал для дисциплинирования системных часов и обслуживает NTP‑запросы.
-- **Apache + PHP** предоставляют REST API (`api.php`, `action.php`) и веб‑интерфейс (`index.html`, `monitor.js`).
-- Клиенты (браузеры, NTP‑устройства) подключаются по локальной сети.
+- **gpsd** – драйвер GNSS‑приёмника, получает NMEA‑строки по UART, сохраняет в SHM.
+- **chrony** – NTP‑демон, дисциплинирует системные часы по PPS‑сигналу.
+- **Apache / nginx + PHP** – обслуживают REST API и статический фронтенд.
+- **Watchdog (systemd)** – фоновый мониторинг NMEA‑потока с автоматическим восстановлением при сбоях.
+- **Клиенты (браузеры, NTP‑клиенты)** подключаются по локальной сети.
 
 ### Поток данных
 
-1. **GNSS → gpsd** (UART с настраиваемой скоростью)  
-   u‑blox M10 отправляет NMEA строки по `/dev/ttyAMA0`, gpsd парсит положение, высоту, спутники и сохраняет в SHM.
-
-2. **PPS → chrony** (GPIO4)  
-   Пульсирующий сигнал 1 Hz на `/dev/pps0` дисциплинирует системные часы до наносекунд.
-
-3. **chrony → API** (Unix socket / TCP port 323)  
-   `chronyc` выполняет команды мониторинга и возвращает `tracking`, `sources`, `sourcestats`, `activity`, `clients`, `serverstats`.
-
-4. **API → Browser** (REST JSON)  
-   `api.php` собирает метрики в JSON, `action.php` выполняет привилегированные команды с парольной защитой.  
-   `index.html` + `monitor.js` отображают интерактивный дашборд с поддержкой мультиязычности.
+1. GNSS‑модуль → gpsd (UART, настраиваемая скорость)
+2. PPS → chrony (GPIO4)
+3. chrony ↔ `chronyc` (команды `tracking`, `sources` и др.)
+4. `api.php` собирает метрики в JSON, `action.php` выполняет административные команды (требуют пароля).
+5. `index.html` + `monitor.js` отображают интерактивный дашборд, поддерживают мультиязычность.
 
 ---
 
 ## Компоненты
 
-### 1. Backend: `api.php` — Сбор метрик
-**Язык:** PHP 7.4+  
-**Зависимости:** `chronyc`, `gpsd`, `systemctl`, `/proc`, `/sys`  
-
-Собирает полную статистику: tracking, sources, sourcestats, activity, clients, serverstats, gpsd, system.  
-Форматирует времена в нано/микро/миллисекунды, возвращает статусы `good/warning/error`.
-
-### 2. Backend: `action.php` — Выполнение команд
-**Язык:** PHP 7.4+  
-**Зависимости:** `sudo`, `systemctl`, `chronyc`, `stty`, `cat`, `strings`, `lsof`  
-
-Поддерживаемые действия:
-- `makestep` – принудительная синхронизация  
-- `restart_gpsd`, `restart_chrony` – перезапуск сервисов  
-- `raw_port`, `port_info` – диагностика UART  
-- `switch_mode` – переключение NTP / u‑center (с автосозданием конфига `ser2net` и сбросом приёмника в NMEA)  
-- `telegram_test`, `telegram_status` – проверка Telegram  
-- `config_read`, `config_write` – работа с `config.json`  
-
-**Все опасные действия защищены паролем** – файл `.monitor_pass` содержит bcrypt‑хеш, пароль передаётся через параметр `auth_pass`.
-
-### 3. Frontend: `index.html` + `monitor.js`
-**Язык:** HTML5 + CSS3 + JavaScript (vanilla)  
-
-- `index.html` содержит только структуру (разметку)  
-- `monitor.js` реализует всю клиентскую логику  
-
-**Основные возможности:**
-- **Мультиязычность** – языковые файлы `ru_locale.txt`, `en_locale.txt`; переключатель языка создаётся динамически на основе `config.json`
-- **Аутентификация действий** – стилизованные диалоги ввода пароля и выбора скорости u‑center
-- **Динамический интерфейс** – карточки метрик, таблица источников, GPS/GNSS, SNR‑гистограмма, Skyview (SVG), карта OpenStreetMap, график смещения, статистика источников, информация о клиентах, системные показатели
-- **Панель управления** – кнопки `makestep`, перезапуск gpsd/chrony, чтение NMEA, информация о порте
-- **Адаптивная вёрстка** – все панели выстраиваются в один столбец на мобильных устройствах
-- **Тёмная/светлая тема** – автоматическое переключение по времени или ручной выбор; настройка через `config.json`
-
-### 4. Конфигурация: `config.json`
-Централизованное управление: интервал обновления, тема, параметры GNSS, настройки Telegram, ser2net, языки, допустимые скорости.
-
-### 5. Стили: `style.css`
-Полная поддержка тёмной и светлой темы через CSS‑переменные. Стилизованы все компоненты, включая диалоги пароля/скорости и мобильные элементы.
-
-### 6. Дополнительные файлы
-- `ru_locale.txt`, `en_locale.txt` – переводы интерфейса  
-- `setup_auth.sh` – скрипт для создания файла `.monitor_pass` с хешем пароля  
-- `favicon.svg` – иконка для вкладки браузера
+| Файл / каталог | Назначение |
+|----------------|------------|
+| `index.html`   | Разметка интерфейса |
+| `monitor.js`   | Клиентская логика (i18n, рендеринг, диалоги) |
+| `api.php`      | Сбор метрик (chrony, gpsd, система) |
+| `action.php`   | Выполнение команд с аутентификацией |
+| `config.json`  | Конфигурация (порты, скорости, языки) |
+| `style.css`    | Стили с поддержкой двух тем |
+| `ru_locale.txt`, `en_locale.txt` | Файлы переводов (включают инструкции подключения) |
+| `setup_auth.sh`| Скрипт создания bcrypt‑хеша пароля |
+| `favicon.svg`  | Иконка для вкладки браузера |
+| `watchdog/`    | Сервис и скрипт автоматического сброса приёмника |
+| `leaflet/`     | (Опционально) Локальные файлы карты Leaflet |
+| `install.sh`   | Автоматический установщик |
 
 ---
 
 ## Требования
 
 ### Аппаратное обеспечение
-- Raspberry Pi 4 (или любой Linux с UART + GPIO)
-- u‑blox M10 GNSS модуль с PPS выходом
-- Веб‑сервер (Apache с PHP или nginx + php‑fpm)
+- Raspberry Pi 4 (или аналог) с UART и GPIO
+- GNSS‑модуль u‑blox M10 с PPS‑выходом
+- Веб‑сервер с поддержкой PHP
 
 ### Программное обеспечение
-- Linux kernel 5.10+ (с поддержкой PPS‑GPIO)
-- PHP 7.4+ с модулями `cli`, `curl`
-- chrony 4.0+, gpsd 3.20+, pps‑tools, ser2net (опционально)
+- Linux (ядро 5.10+ с поддержкой PPS‑GPIO)
+- PHP 7.4+ (`cli`, `curl`, `json`)
+- chrony 4.0+, gpsd 3.20+, pps‑tools
+- `ser2net` (опционально, для u‑center)
+- `jq` (для `install.sh`)
 
-### Разрешения
-Пользователь `www-data` должен иметь права на выполнение системных команд через sudo. Настройка sudoers описана в разделе «Установка».
+### Права
+- `www-data` должен входить в группу `dialout` (доступ к UART)
+- Специальные права `sudo` (настраиваются автоматически или вручную)
 
 ---
 
 ## Установка и настройка
 
-### 1. Копирование файлов
-Скопируйте все файлы в `/var/www/html/monitor/` (или другую директорию веб‑сервера).  
+### Быстрая установка (рекомендуется)
 
-Установите владельца `www-data:www-data` и права:
+'''bash
+git clone https://github.com/NoIDXMV6/chrony-ublox-M10.git
+cd chrony-ublox-M10
+sudo bash install.sh
+'''
 
-    sudo chown -R www-data:www-data /var/www/html/monitor/
-    sudo find /var/www/html/monitor/ -type d -exec chmod 755 {} \;
-    sudo find /var/www/html/monitor/ -type f -exec chmod 644 {} \;
-    sudo chmod 600 /var/www/html/monitor/config.json
+Инсталлятор запросит основные параметры (порт ser2net, скорость UART, пароль администратора, тип веб‑сервера) и выполнит полную настройку.
 
-### 2. Создание пароля администратора
-Выполните от root:
+### Ручная установка
 
-    cd /var/www/html/monitor/
-    sudo bash setup_auth.sh
+1. **Скопируйте все файлы** в `/var/www/html/monitor/`.
+   '''bash
+   sudo mkdir -p /var/www/html/monitor
+   sudo cp *.php *.html *.js *.json *.css *.txt *.svg *.sh /var/www/html/monitor/
+   sudo cp -r leaflet/ /var/www/html/monitor/   # если Leaflet лежит локально
+   sudo chown -R www-data:www-data /var/www/html/monitor
+   sudo find /var/www/html/monitor -type d -exec chmod 755 {} \;
+   sudo find /var/www/html/monitor -type f -exec chmod 644 {} \;
+   sudo chmod 600 /var/www/html/monitor/config.json
+   '''
 
-Скрипт запросит пароль и создаст файл `.monitor_pass` с bcrypt‑хешем.  
-Пароль потребуется для всех действий на панели управления (makestep, перезапуски, переключение режимов).
+2. **Установите пароль администратора.**
+   '''bash
+   cd /var/www/html/monitor
+   sudo bash setup_auth.sh
+   '''
 
-### 3. Настройка sudo для www‑data
-Создайте файл `/etc/sudoers.d/www-ntp-monitor` со следующим содержимым:
+3. **Настройте права sudo** для пользователя `www-data` (создайте файл `/etc/sudoers.d/www-ntp-monitor` с содержимым, приведённым в документации).
 
-    www-data ALL=(ALL) NOPASSWD: /usr/bin/chronyc
-    www-data ALL=(ALL) NOPASSWD: /bin/systemctl start gpsd
-    www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop gpsd
-    www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart gpsd
-    www-data ALL=(ALL) NOPASSWD: /bin/systemctl start gpsd.socket
-    www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop gpsd.socket
-    www-data ALL=(ALL) NOPASSWD: /bin/systemctl start chrony
-    www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop chrony
-    www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart chrony
-    www-data ALL=(ALL) NOPASSWD: /bin/systemctl start ser2net
-    www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop ser2net
-    www-data ALL=(ALL) NOPASSWD: /bin/stty
-    www-data ALL=(ALL) NOPASSWD: /usr/bin/lsof
+4. **Настройте веб‑сервер** (Apache или nginx) – примеры конфигурации приведены ниже.
 
-Проверьте права:
-
-    sudo chmod 440 /etc/sudoers.d/www-ntp-monitor
-    sudo visudo -c
-
-Добавьте `www-data` в группы `dialout` (для доступа к UART) и `tty` (если требуется).
-
-### 4. Конфигурация
-Отредактируйте `config.json`:
-- укажите скорость UART (`gnss.baudrate`)
-- при необходимости измените порт ser2net (`ser2net.port`)
-- добавьте языки в `languages` (можно добавить свои файлы локализации)
-- список допустимых скоростей для u‑center — `ser2net.baudrate_options`
-
-### 5. Проверка
-Откройте в браузере `http://<IP_RPi>/monitor/`.  
-При первом входе отобразится дашборд. Для действий управления потребуется пароль, заданный на шаге 2.
+5. **(Опционально) Активируйте watchdog.**
+   '''bash
+   sudo cp watchdog/ntp-watchdog.sh /usr/local/bin/
+   sudo chmod +x /usr/local/bin/ntp-watchdog.sh
+   sudo cp watchdog/ntp-watchdog.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now ntp-watchdog.service
+   '''
 
 ---
 
 ## Использование
 
 ### Интерфейс и навигация
-- Верхняя панель: часы, хостнейм, статусы сервисов, кнопки управления темой и языком, кнопка обновления.
-- Переключатель языка (RU/EN) находится в правом верхнем углу экрана.
-- Панель управления и диагностики расположена под карточками метрик.
-- Все панели данных (источники, GPS, карта неба, график, клиенты) идут ниже.
+- **Шапка:** часы реального времени, имя хоста, статусы сервисов (chrony, gpsd, PPS, Telegram), кнопки управления темой и языком.
+- **Панель управления** (под карточками метрик) – кнопки действий (`makestep`, перезапуски, диагностика, сброс GNSS).
+- **Блоки данных** – источники времени, GPS/GNSS, карта неба, SNR‑гистограмма, график смещения, клиенты NTP, системные ресурсы, статистика.
+- **Переключатель языка** (правый верхний угол экрана) – список языков формируется из `config.json`.
 
 ### Аутентификация действий
-При нажатии на любую кнопку управления (синхронизация, перезапуск, смена режима) появляется диалоговое окно для ввода пароля. Пароль кэшируется на 30 минут. При неверном вводе повторно запрашивается.
+При нажатии на любую кнопку управления (синхронизация, перезапуск, смена режима) появляется стилизованное диалоговое окно для ввода пароля. Пароль кэшируется на 30 минут; при неверном вводе запрашивается повторно.
 
 ### Режим u‑center (ser2net)
 1. Нажмите кнопку **u‑center**.
 2. Введите пароль.
-3. В появившемся диалоге выберите скорость порта (предустановлен список из `config.json`).
+3. Выберите скорость порта в появившемся диалоге (значения по умолчанию из `config.json`).
 4. Нажмите **Подтвердить** – система остановит gpsd/chrony и запустит `ser2net`, открыв TCP‑доступ к приёмнику.
 5. Подключитесь из u‑center к `tcp://<IP>:2000` (или другому порту из конфига).
 6. При возврате в **NTP** сервисы автоматически перезапускаются, а приёмник сбрасывается в NMEA‑режим с корректной скоростью.
@@ -233,64 +171,66 @@
 
 ### Основной endpoint
 
-    GET /monitor/api.php
-
-Без параметров. Возвращает полный JSON со всеми метриками.
+'''bash
+GET /monitor/api.php
+'''
+Возвращает полный JSON со всеми метриками.
 
 ### Action endpoint
 
-    GET /monitor/action.php?action=<ACTION>
-    POST /monitor/action.php (в body: action=<ACTION>)
+'''bash
+GET /monitor/action.php?action=<ACTION>
+POST /monitor/action.php (в body: action=<ACTION>)
+'''
 
-Для действий, требующих аутентификации, передавайте параметр `auth_pass=<пароль>`.
+Для действий, требующих аутентификации, необходимо передать параметр `auth_pass=<пароль>`.
 
 **Действия:**
-- `makestep`, `restart_gpsd`, `restart_chrony`, `raw_port`, `port_info`
+- `makestep`, `restart_gpsd`, `restart_chrony`
+- `raw_port`, `port_info`
 - `switch_mode` – переключение NTP/u‑center (принимает `mode=ucenter|time` и опционально `baud=<скорость>`)
+- `hard_reset_gnss` – ручной запуск аппаратного/программного сброса (через watchdog)
 - `telegram_test`, `telegram_status`
 - `config_read`, `config_write`
-- `server_info`, `current_mode`, `get_instructions`
+- `server_info`, `current_mode`
 
 **Примеры запросов:**
 
-    curl http://192.168.1.10/monitor/api.php | jq .
-    curl "http://192.168.1.10/monitor/action.php?action=makestep" | jq .
+'''bash
+curl http://192.168.1.10/monitor/api.php | jq .
+curl "http://192.168.1.10/monitor/action.php?action=makestep&auth_pass=secret" | jq .
+'''
 
 **Пример успешного ответа:**
-
-    {
-      "success": true,
-      "output": "200 OK\nClock was stepped by 0.000000042 seconds"
-    }
+'''json
+{
+  "success": true,
+  "output": "200 OK\nClock was stepped by 0.000000042 seconds"
+}
+'''
 
 **Пример ответа при ошибке аутентификации:**
-
-    {
-      "success": false,
-      "error": "Требуется пароль",
-      "auth_required": true
-    }
+'''json
+{
+  "success": false,
+  "error": "Требуется пароль",
+  "auth_required": true
+}
+'''
 
 ---
 
 ## Панель управления
 
-### Кнопки управления и диагностики
-
-#### Управление сервисами
-
 | Кнопка | Команда | Описание |
 |--------|---------|----------|
 | ⏱ Принудительная синхронизация | `makestep` | Немедленное выравнивание часов |
-| ↺ Перезапуск gpsd | `systemctl restart gpsd` | Перезагрузка GPS демона |
-| ↺ Перезапуск chrony | `systemctl restart chrony` | Перезагрузка NTP демона |
-
-#### Диагностика UART
-
-| Кнопка | Команда | Описание |
-|--------|---------|----------|
-| 📡 Сырые данные NMEA | `raw_port` | Прямое чтение NMEA с порта |
-| ℹ Параметры порта | `port_info` | Текущие настройки UART и использующие процессы |
+| ↺ Перезапуск gpsd | `systemctl restart gpsd` | Перезагрузка GPS-демона |
+| ↺ Перезапуск chrony | `systemctl restart chrony` | Перезагрузка NTP-демона |
+| 🔄 Сброс GNSS | `reset_gnss` | Программный сброс модуля в NMEA‑режим |
+| ⚡ Hard Reset GNSS | `hard_reset_gnss` | Аппаратный сброс питания (требует MOSFET) / программный через watchdog |
+| 📡 Сырые данные NMEA | `raw_port` | Прямое чтение NMEA‑строк |
+| ℹ Параметры порта | `port_info` | Информация об устройстве, процессах и скорости |
 
 ---
 
@@ -327,6 +267,19 @@
 
 ---
 
+## Watchdog и аппаратный сброс
+
+*Сервис `ntp-watchdog` (systemd) мониторит NMEA‑поток каждые 20 секунд.*  
+При отсутствии данных в течение трёх проверок (около минуты) запускается восстановление:
+
+1. **Программный сброс** – перебор скоростей с отправкой UBX/PUBX‑команд для возврата модуля в NMEA.
+2. **Аппаратный сброс** (если настроен MOSFET‑ключ на GPIO23) – кратковременное отключение питания модуля.
+3. Ручной запуск – кнопка **«⚡ Hard Reset GNSS»** в панели управления вызывает `systemctl reload ntp-watchdog.service`.
+
+Логи watchdog: `journalctl -u ntp-watchdog -f`.
+
+---
+
 ## Решение проблем
 
 ### При вводе пароля ничего не происходит / ошибка 401
@@ -342,9 +295,12 @@
 - Обновите страницу со сбросом кэша (Ctrl+Shift+R).
 - Проверьте, что в `style.css` присутствуют media queries для `max-width: 767px`.
 
----
+### Модуль не отвечает (NMEA‑поток отсутствует)
+- Нажмите **«Сброс GNSS»**. Если не помогло – **«Hard Reset GNSS»** (требует предварительно настроенный watchdog).
+- Проверьте права: `ls -la /dev/ttyAMA0` (владелец `root`, группа `dialout`).
+- Убедитесь, что gpsd запущен с флагом `-s <скорость>` (см. `/etc/default/gpsd`).
 
-## Структура файлов
+---
 
 monitor/  
 ├── index.html # Разметка интерфейса  
@@ -357,7 +313,9 @@ monitor/
 ├── en_locale.txt # Локализация (английский)  
 ├── setup_auth.sh # Скрипт установки пароля  
 ├── favicon.svg # Иконка сайта  
-└── README.md # Документация  
+├── watchdog/ # Файлы watchdog  
+└── README.md # Эта документация  
+
 
 ---
 
@@ -367,20 +325,9 @@ monitor/
 
 ---
 
-## Ссылки
-
-- [chrony документация](https://chrony.troglobit.com/)
-- [gpsd документация](https://gpsd.io/)
-- [u-blox M10 datasheet](https://www.u-blox.com/en/product/m10-series)
-- [NTP Protocol RFC 5905](https://tools.ietf.org/html/rfc5905)
-- [Raspberry Pi GPIO](https://www.raspberrypi.com/documentation/computers/os.html#gpio)
-- [PHP exec() функция](https://www.php.net/manual/en/function.exec.php)
-
----
-
-**Версия:** 2.2 (обновлено 2026‑05)  
+**Версия:** 2.3 (обновлено 2026‑05)  
 **Автор:** @NoIDXMV6  
 **Репо:** [chrony-ublox-M10](https://github.com/NoIDXMV6/chrony-ublox-M10)  
-**Статус:** ✅ Актуально — добавлена мультиязычность, аутентификация и поддержка u‑center.
-**Репо:** [chrony-ublox-M10](https://github.com/NoIDXMV6/chrony-ublox-M10)  
-**Статус:** ✅ Актуально — все компоненты (api.php, action.php, index.html, config.json, style.css) документированы
+**Статус:** ✅ Актуально — мультиязычность, аутентификация, u‑center, watchdog, аппаратный сброс.
+
+## Структура файлов
