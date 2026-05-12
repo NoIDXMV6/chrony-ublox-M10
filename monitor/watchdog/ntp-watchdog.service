@@ -1,0 +1,17 @@
+[Unit]
+Description=NTP Monitor GNSS Watchdog
+After=network.target gpsd.service chrony.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/ntp-watchdog.sh --daemon
+ExecReload=/usr/local/bin/ntp-watchdog.sh --force-reset
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ntp-watchdog
+User=root
+
+[Install]
+WantedBy=multi-user.target
