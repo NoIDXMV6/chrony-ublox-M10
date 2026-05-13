@@ -111,6 +111,8 @@ sudo bash install.sh
 
 ### Ручная установка
 
+Подробнее [тут](install.md)
+
 1. **Скопируйте все файлы** в `/var/www/html/monitor/`.
    ```bash
    sudo mkdir -p /var/www/html/monitor
