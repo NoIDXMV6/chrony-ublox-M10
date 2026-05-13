@@ -349,7 +349,7 @@ gpspipe -w -n 10 | grep -o '"shm":"[^"]*"'
 Это означает, что gpsd создает два сегмента разделяемой памяти: NTP1 и NTP2. В терминах chrony, SHM 0 соответствует NTP1, SHM 1 соответствует NTP2. Таким образом, PPS, скорее всего, находится в NTP2 (индекс 1). Теперь нужно окончательно настроить chrony.conf с использованием SHM 0 для NMEA и SHM 1 для PPS.  
 Замените в /etc/chrony/chrony.conf оба параметра refclock на:
 ```
-refclock SHM 0 offset 0.5 delay 0.2 refid NMEA noselect
+refclock SHM 0 offset 0.0 delay 0.2 refid NMEA noselect
 refclock SHM 1 offset 0.0 delay 0.0 refid PPS prefer
 ```
 Теперь chrony будет брать:
