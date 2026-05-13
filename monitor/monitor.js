@@ -774,17 +774,28 @@ function renderClients(d) {
   if (bb) { bb.textContent = list.length + ' клиент' + (list.length===1?'':'ов'); bb.className = 'block-badge '+(list.length>0?'good':''); }
   if (!list.length) { body.innerHTML = '<div class="info-msg">' + t('clients.no_clients', 'Нет активных клиентов') + '</div>'; return; }
 
+  // Сортируем по количеству NTP‑запросов (по убыванию)
+  list.sort((a, b) => b.ntp - a.ntp);
+
+  // Диапазон значений для расчёта яркости
+  const ntpValues = list.map(c => c.ntp);
+  const maxNtp = Math.max(...ntpValues, 0);
+  const minNtp = Math.min(...ntpValues, 0);
+  const range  = maxNtp - minNtp || 1;   // защита от деления на ноль
+
   body.innerHTML =
     `<table class="tbl"><thead><tr>` +
     `<th>${t('clients.host', 'Хост')}</th><th>${t('clients.ntp', 'NTP')}</th><th>${t('clients.drop', 'Drop')}</th><th>${t('clients.last', 'Last')}</th></tr></thead><tbody>` +
-    list.map(c =>
-      `<tr>` +
-      `<td style="color:var(--text);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(c.hostname)}">${h(c.hostname)}</td>` +
-      `<td>${c.ntp}</td>` +
-      `<td>${c.drop>0?`<span style="color:var(--yellow)">${c.drop}</span>`:'0'}</td>` +
-      `<td>${h(c.last)}</td>` +
-      `</tr>`
-    ).join('') +
+    list.map(c => {
+      // яркость от 0.4 (минимум запросов) до 1.0 (максимум)
+      const opacity = 0.3 + ((c.ntp - minNtp) / range) * 0.7;
+      return `<tr>` +
+        `<td style="color:var(--text);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:${opacity.toFixed(2)}" title="${h(c.hostname)}">${h(c.hostname)}</td>` +
+        `<td>${c.ntp}</td>` +
+        `<td>${c.drop>0?`<span style="color:var(--yellow)">${c.drop}</span>`:'0'}</td>` +
+        `<td>${h(c.last)}</td>` +
+        `</tr>`;
+    }).join('') +
     `</tbody></table>`;
 }
 
