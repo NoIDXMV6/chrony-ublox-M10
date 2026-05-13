@@ -278,7 +278,8 @@ curl "http://192.168.1.10/monitor/action.php?action=makestep&auth_pass=secret" |
 
 Логи watchdog: `journalctl -u ntp-watchdog -f`.  
 ### Схема подключения  
-<img width="351" height="240" alt="MOSFET drawio" src="https://github.com/user-attachments/assets/20aa2bcb-661e-4055-ad2e-36ef8ed80423" />
+<img width="351" height="240" alt="591172794-20aa2bcb-661e-4055-ad2e-36ef8ed80423" src="https://github.com/user-attachments/assets/b7d78d06-d020-4849-97ba-6567593cb95d" />
+
 
 Отсоединить питание приемника от pin1 и соединить с GNSS (VCC) ключа.
 
