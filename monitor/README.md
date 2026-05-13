@@ -6,9 +6,6 @@
 
 <img width="1431" height="1864" alt="Screenshot_8" src="https://github.com/user-attachments/assets/764ae5c7-6c02-45a8-97cb-943e5228e598" />
 
-<img width="723" height="600" alt="Screenshot_5" src="https://github.com/user-attachments/assets/f7ba10a5-9e1b-4629-9cd3-e4fcbf0d8efe" />  
-<img width="722" height="259" alt="Screenshot_6" src="https://github.com/user-attachments/assets/72d0a789-d80a-4dfd-a317-53958e67262b" />  
-
 Полнофункциональная система мониторинга в реальном времени для Stratum 1 NTP-сервера на базе Raspberry Pi с GNSS-модулем u‑blox M10.  
 # Ключевые особенности:  
 - **Мультиязычный интерфейс** (русский / английский) с динамической сменой языка  
@@ -167,6 +164,9 @@ sudo bash install.sh
 ### Смена языка
 Выберите нужный язык в выпадающем списке (правый верхний угол). Интерфейс мгновенно перерисуется с новыми переводами. Список языков берётся из `config.json`, можно добавлять собственные файлы локализации (формат JSON).
 
+### Инструкция по подключению
+
+<img width="722" height="259" alt="Screenshot_6" src="https://github.com/user-attachments/assets/72d0a789-d80a-4dfd-a317-53958e67262b" />   
 ---
 
 ## API Reference
@@ -237,7 +237,7 @@ curl "http://192.168.1.10/monitor/action.php?action=makestep&auth_pass=secret" |
 ---
 
 ## Конфигурация
-
+<img width="723" height="600" alt="Screenshot_5" src="https://github.com/user-attachments/assets/f7ba10a5-9e1b-4629-9cd3-e4fcbf0d8efe" />  
 Файл `config.json` содержит централизованные настройки:
 
 - `monitor` – интервал обновления, тема оформления, заголовок
