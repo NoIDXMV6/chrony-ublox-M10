@@ -1,3 +1,5 @@
+<img width="150" height="150" alt="favicon" src="https://github.com/user-attachments/assets/a97caaf9-0d15-44fe-9773-afe97644d830" />
+
 # Stratum 1 NTP Сервер — Raspberry Pi 4 + u-blox M10
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
