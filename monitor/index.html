@@ -144,8 +144,15 @@
     </div>
   </div>
 
-  <!-- Mid: Sync + GNSS + Clients + System (equal width) -->
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:13px;margin-bottom:13px" id="grid-mid">
+    <!-- Mid: Clients + Sync + GNSS + System -->
+  <div class="grid-clients-row" id="grid-clients-row">
+    <div class="block">
+      <div class="block-head">
+        <div class="block-title"><span id="clients-title">Клиенты NTP</span></div>
+        <span class="block-badge" id="bb-clients">—</span>
+      </div>
+      <div class="block-body scroll" id="body-clients" style="max-height:300px"><div class="err-msg">Загрузка...</div></div>
+    </div>
     <div class="block">
       <div class="block-head"><div class="block-title"><span id="tracking-title">Синхронизация</span></div></div>
       <div class="block-body" id="body-tracking"><div class="err-msg">Загрузка...</div></div>
@@ -153,13 +160,6 @@
     <div class="block">
       <div class="block-head"><div class="block-title"><span id="gnss-title">GNSS модуль</span></div></div>
       <div class="block-body" id="body-gnss"><div class="err-msg">Загрузка...</div></div>
-    </div>
-    <div class="block">
-      <div class="block-head">
-        <div class="block-title"><span id="clients-title">Клиенты NTP</span></div>
-        <span class="block-badge" id="bb-clients">—</span>
-      </div>
-      <div class="block-body scroll" id="body-clients"><div class="err-msg">Загрузка...</div></div>
     </div>
     <div class="block">
       <div class="block-head"><div class="block-title"><span id="system-title">Система</span></div></div>

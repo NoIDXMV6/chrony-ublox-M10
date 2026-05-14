@@ -164,6 +164,7 @@ const state = {
   server       : { ip:'', hostname:'', ntp_port:123, ser2_port:2947, ser2_baudrate:9600, baudrate_options:[4800,9600,19200,38400,57600,115200] },
   lastSats     : [],
   firstLoad    : true,
+  lastData     : null,
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -765,8 +766,22 @@ function renderTracking(d) {
 // Render: Clients
 // ══════════════════════════════════════════════════════════════
 
+function sortClients(key) {
+  clientSortKey = key;
+  refresh(); // Перерисовать с новой сортировкой
+}
+
+// ══════════════════════════════════════════════════════════════
+// Состояние сортировки клиентов
+// ══════════════════════════════════════════════════════════════
+let clientSortState = { key: 'ntp', asc: false }; // по умолчанию сортировка по NTP, убывание
+
+// ══════════════════════════════════════════════════════════════
+// Render: Clients (расширенный, сортировка + яркость + индикаторы)
+// ══════════════════════════════════════════════════════════════
 function renderClients(d) {
-  const list = (d.clients?.list || []).filter(c => c.hostname !== 'localhost');
+  //const list = (d.clients?.list || []).filter(c => c.hostname !== 'localhost');
+  const list = [...(d.clients?.list || [])].filter(c => c.hostname !== 'localhost');
   const bb   = $('bb-clients');
   const body = $('body-clients');
   if (!body) return;
@@ -774,29 +789,98 @@ function renderClients(d) {
   if (bb) { bb.textContent = list.length + ' клиент' + (list.length===1?'':'ов'); bb.className = 'block-badge '+(list.length>0?'good':''); }
   if (!list.length) { body.innerHTML = '<div class="info-msg">' + t('clients.no_clients', 'Нет активных клиентов') + '</div>'; return; }
 
-  // Сортируем по количеству NTP‑запросов (по убыванию)
-  list.sort((a, b) => b.ntp - a.ntp);
+  // Применяем выбранную сортировку
+  const sortKey = clientSortState.key;
+  const sortAsc = clientSortState.asc;
+  list.sort((a, b) => {
+    let valA, valB;
+    switch (sortKey) {
+      case 'drop':   valA = a.drop || 0; valB = b.drop || 0; break;
+      case 'last':   valA = parseFloat(a.last) || 0; valB = parseFloat(b.last) || 0; break;
+      case 'hostname': return sortAsc ? a.hostname.localeCompare(b.hostname) : b.hostname.localeCompare(a.hostname);
+      case 'ntp':
+      default:       valA = a.ntp || 0; valB = b.ntp || 0; break;
+    }
+    return sortAsc ? valA - valB : valB - valA;
+  });
 
-  // Диапазон значений для расчёта яркости
+  // Яркость в зависимости от активности (по NTP)
   const ntpValues = list.map(c => c.ntp);
   const maxNtp = Math.max(...ntpValues, 0);
   const minNtp = Math.min(...ntpValues, 0);
-  const range  = maxNtp - minNtp || 1;   // защита от деления на ноль
+  const range  = maxNtp - minNtp || 1;
+
+  // Вспомогательные функции
+  function getAddressIcon(hostname) {
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) return '🌐'; // IPv4
+    if (hostname.includes(':')) return '🖧'; // IPv6
+    return '💻'; // hostname
+  }
+
+  function getStatus(drop) {
+    if (drop > 10) return { icon: '🔴', label: 'Critical', color: 'var(--red)' };
+    if (drop > 0)  return { icon: '🟡', label: 'Warning',  color: 'var(--yellow)' };
+    return { icon: '🟢', label: 'OK', color: 'var(--green)' };
+  }
+
+  // Проверяем наличие дополнительных полей
+  const hasCmd   = list.some(c => c.cmd !== undefined && c.cmd !== '');
+  const hasInt   = list.some(c => c.int !== undefined && c.int !== '');
+  const hasLast  = list.some(c => c.last !== undefined && c.last !== '');
+
+  // Формируем заголовки с обработчиками клика, стрелками и выделением активного столбца
+  function th(key, text, canSort = true) {
+    if (!canSort || key === 'status') return `<th>${text}</th>`;
+    const isActive = (clientSortState.key === key);
+    const arrow = isActive ? (clientSortState.asc ? ' ▲' : ' ▼') : '';
+    // Добавляем класс sort-active для активного столбца
+    const activeClass = isActive ? ' class="sort-active"' : '';
+    return `<th${activeClass} style="cursor:pointer;user-select:none" onclick="toggleClientSort('${key}')">${text}${arrow}</th>`;
+  }
+
+  let headerCells = '';
+  headerCells += th('hostname', t('clients.host', 'Хост'));
+  headerCells += `<th>Статус</th>`;
+  headerCells += th('ntp', 'NTP');
+  headerCells += th('drop', 'Drop');
+  if (hasCmd) headerCells += th('cmd', 'Cmd');
+  if (hasInt) headerCells += th('int', 'Int (мс)');
+  if (hasLast) headerCells += th('last', 'Last (с)');
 
   body.innerHTML =
-    `<table class="tbl"><thead><tr>` +
-    `<th>${t('clients.host', 'Хост')}</th><th>${t('clients.ntp', 'NTP')}</th><th>${t('clients.drop', 'Drop')}</th><th>${t('clients.last', 'Last')}</th></tr></thead><tbody>` +
+    `<table class="tbl"><thead><tr>${headerCells}</tr></thead><tbody>` +
     list.map(c => {
-      // яркость от 0.4 (минимум запросов) до 1.0 (максимум)
-      const opacity = 0.3 + ((c.ntp - minNtp) / range) * 0.7;
-      return `<tr>` +
-        `<td style="color:var(--text);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:${opacity.toFixed(2)}" title="${h(c.hostname)}">${h(c.hostname)}</td>` +
-        `<td>${c.ntp}</td>` +
-        `<td>${c.drop>0?`<span style="color:var(--yellow)">${c.drop}</span>`:'0'}</td>` +
-        `<td>${h(c.last)}</td>` +
-        `</tr>`;
+      const opacity = 0.4 + ((c.ntp - minNtp) / range) * 0.6;
+      const status = getStatus(c.drop || 0);
+      const icon = getAddressIcon(c.hostname);
+      const intervalMs = c.int ? Math.pow(2, parseInt(c.int)) * 1000 : null;
+      let row = `<tr>`;
+      row += `<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:${opacity.toFixed(2)}" title="${h(c.hostname)}">${icon} ${h(c.hostname)}</td>`;
+      row += `<td><span style="color:${status.color}" title="${status.label}">${status.icon}</span></td>`;
+      row += `<td>${c.ntp}</td>`;
+      row += `<td>${c.drop > 0 ? `<span style="color:var(--yellow)">${c.drop}</span>` : '0'}</td>`;
+      if (hasCmd) row += `<td>${c.cmd || '—'}</td>`;
+      if (hasInt) row += `<td>${intervalMs ? intervalMs.toLocaleString() : '—'}</td>`;
+      if (hasLast) row += `<td>${c.last || '—'}</td>`;
+      row += `</tr>`;
+      return row;
     }).join('') +
     `</tbody></table>`;
+}
+
+// Функция переключения сортировки (добавляется в глобальную область)
+function toggleClientSort(key) {
+  if (clientSortState.key === key) {
+    clientSortState.asc = !clientSortState.asc;
+  } else {
+    clientSortState.key = key;
+    clientSortState.asc = false; // по умолчанию убывание
+  }
+  // refresh(); // перерисовать таблицу
+  // Мгновенная перерисовка таблицы клиентов
+  if (state.lastData) {
+    renderClients(state.lastData);
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1261,6 +1345,7 @@ function updateBlockTitles() {
 async function refresh() {
   try {
     const d = await fetchJSON(API);
+    state.lastData = d;
     render(d);
   } catch(e) {
     const ht = $('h-time');
@@ -1289,6 +1374,7 @@ function startTimer() {
 // ══════════════════════════════════════════════════════════════
 
 let _cachedPassword = null;
+let clientSortKey = 'ntp';
 
 function showPasswordDialog() {
   return new Promise((resolve) => {

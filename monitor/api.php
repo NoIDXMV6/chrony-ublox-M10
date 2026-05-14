@@ -180,7 +180,7 @@ function getActivity() {
 // ─── Clients ──────────────────────────────────────────────────────────────
 
 function getClients() {
-    $out = chronyc('clients', true);
+    $out = chronyc('clients -v', true);
     if ($out === null) return ['error' => 'chronyc clients failed', 'list' => []];
 
     $clients = [];
@@ -189,15 +189,18 @@ function getClients() {
         // Формат: Hostname NTP Drop Int IntL Last Cmd Drop Int Last
         // Любое поле может быть числом или '-'
         $f = preg_split('/\s+/', trim($line));
-        if (count($f) < 10) continue;
-        $clients[] = [
-            'hostname' => $f[0],
-            'ntp'      => (int)$f[1],
-            'drop'     => (int)$f[2],
-            'int'      => $f[3],
-            'intl'     => $f[4],
-            'last'     => $f[5],
-        ];
+        if (!preg_match('/^(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\S+)(?:\s+(\S+))?(?:\s+(\S+))?/', $line, $m)) continue;
+	    $clients[] = [
+	    'hostname' => $m[1],
+	    'ntp'      => (int)$m[2],
+	    'drop'     => (int)$m[3],
+	    'int'      => $m[4],
+	    'intl'     => $m[5],
+	    'last'     => $m[6],
+	    'cmd'      => $m[7] ?? '—',
+	    'offset'   => isset($m[8]) ? (float)$m[8] : null,
+	    'jitter'   => isset($m[9]) ? (float)$m[9] : null,
+	];
     }
 
     $status = count($clients) === 0 ? 'warning' : 'good';

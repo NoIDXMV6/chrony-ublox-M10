@@ -520,3 +520,34 @@ body {
     right: 10px;
   }
 }
+
+#clients-block .block-body.scroll {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Выделение активного столбца сортировки в таблице клиентов */
+.tbl th.sort-active {
+  color: var(--accent) !important;
+  background-color: rgba(0, 212, 255, 0.1); /* мягкий голубой фон для тёмной темы */
+  font-weight: 700;
+}
+
+/* Для светлой темы — немного темнее фон */
+[data-theme="light"] .tbl th.sort-active {
+  background-color: rgba(2, 132, 199, 0.1);
+}
+/* Новый ряд: клиенты (шире) + синхронизация, GNSS, система */
+.grid-clients-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 13px;
+  margin-bottom: 13px;
+}
+
+/* Мобильные: все в один столбец */
+@media (max-width: 700px) {
+  .grid-clients-row {
+    grid-template-columns: 1fr;
+  }
+}
