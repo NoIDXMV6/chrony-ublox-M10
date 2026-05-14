@@ -459,7 +459,7 @@ sudo systemctl restart chrony
 После правильной установки и прогрева (~5–10 минут на открытом небе):
 
 ```
-chronyc tracking
+root@ntp:~# chronyc tracking
 Reference ID    : 50505300 (PPS)
 Stratum         : 1
 Ref time (UTC)  : Thu May 14 09:12:00 2026
