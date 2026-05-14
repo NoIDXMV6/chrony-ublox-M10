@@ -459,23 +459,35 @@ sudo systemctl restart chrony
 После правильной установки и прогрева (~5–10 минут на открытом небе):
 
 ```
-$ chronyc sources -v
-MS Name/IP Address    Stratum Poll Reach LastRx Last sample
-=============================================================
-#? GPS                      0    4   377     2   +105ms[ +105ms] +/- 251ms
-#* PPS                      0    4   377     1   -159ns[ +619ns] +/- 167ns
-^- 91.189.94.4              2    6   377    33    -1ms[   -1ms] +/-  65ms
-
-$ chronyc tracking
+chronyc tracking
 Reference ID    : 50505300 (PPS)
 Stratum         : 1
-System time     : 0.000000159 seconds fast of NTP time
-RMS offset      : 0.000000098 seconds
-Frequency       : -0.123 ppm fast
-Residual freq   : -0.001 ppm
-Skew            : 0.140 ppm
-Root delay      : 0.000159 seconds
-Root dispersion : 0.000187 seconds
+Ref time (UTC)  : Thu May 14 09:12:00 2026
+System time     : 0.004687872 seconds fast of NTP time
+Last offset     : +0.001886390 seconds
+RMS offset      : 0.004174584 seconds
+Frequency       : 9.072 ppm fast
+Residual freq   : +19.805 ppm
+Skew            : 0.038 ppm
+Root delay      : 0.000000000 seconds
+Root dispersion : 0.061631236 seconds
+Update interval : 16.0 seconds
+Leap status     : Normal
+
+root@ntp:~# chronyc sources
+MS Name/IP address         Stratum Poll Reach LastRx Last sample
+===============================================================================
+#? NMEA                          0   4   377    15   +128ms[ +130ms] +/-  156ms
+#* PPS                           0   4   377    15  +4437us[+6103us] +/-   40ms
+^? scan-76.skipa.cyberok.ru      0  10     0     -     +0ns[   +0ns] +/-    0ns
+^? mskm9-ntp01c.ntppool.yan>     0  10     0     -     +0ns[   +0ns] +/-    0ns
+^? mail.rashnikov.name           0  10     0     -     +0ns[   +0ns] +/-    0ns
+^? 51.250.110.169                0  10     0     -     +0ns[   +0ns] +/-    0ns
+^? 23-93-251-54.dedicated.s>     0  10     0     -     +0ns[   +0ns] +/-    0ns
+^? 172-104-28-175.ip.linode>     0  10     0     -     +0ns[   +0ns] +/-    0ns
+^? 92.63.176.247                 0  10     0     -     +0ns[   +0ns] +/-    0ns
+^? mail.redway.ru                0  10     0     -     +0ns[   +0ns] +/-    0ns
+
 ```
 
 `#* PPS` — PPS выбран как основной источник (именно это означает Stratum 1).
