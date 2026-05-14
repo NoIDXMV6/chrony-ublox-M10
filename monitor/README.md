@@ -1,3 +1,4 @@
+<img width="150" height="150" alt="favicon" src="https://github.com/user-attachments/assets/a97caaf9-0d15-44fe-9773-afe97644d830" />
 
 # NTP//MON — Веб-интерфейс мониторинга Stratum 1 сервера
 
