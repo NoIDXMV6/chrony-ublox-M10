@@ -1,11 +1,9 @@
-<img width="1067" height="1376" alt="Screenshot_11" src="https://github.com/user-attachments/assets/a684d5aa-42ef-44f6-b80a-adda165c1e36" />
-
 
 # NTP//MON — Веб-интерфейс мониторинга Stratum 1 сервера
 
 Полнофункциональная система мониторинга в реальном времени для Stratum 1 NTP сервера на Raspberry Pi с u-blox M10 GNSS модулем.
 
-<img width="1431" height="1864" alt="Screenshot_8" src="https://github.com/user-attachments/assets/764ae5c7-6c02-45a8-97cb-943e5228e598" />
+<img width="1067" height="1376" alt="Screenshot_11" src="https://github.com/user-attachments/assets/a684d5aa-42ef-44f6-b80a-adda165c1e36" />
 
 Полнофункциональная система мониторинга в реальном времени для Stratum 1 NTP-сервера на базе Raspberry Pi с GNSS-модулем u‑blox M10.  
 # Ключевые особенности:  
