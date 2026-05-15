@@ -13,7 +13,7 @@ PPS-дисциплинированный NTP-сервер первого стр�
 **Платформа:** Raspberry Pi 4 · Armbian Trixie (Debian 13) · ядро 6.x  
 **GNSS модуль:** QUESCAN UBX-M10050-KB (u-blox M10) с PPS · [Купить на AliExpress](https://ali.click/egbg811)
 
-**Точность:** ~150–300 нс (PPS-дисциплинированный источник) · **Stratum:** 1
+**Точность:** ~150–300 мс (PPS-дисциплинированный источник) · **Stratum:** 1
 
 **Мониторинг:** 🌐 [Веб-интерфейс](monitor/README.md) в реальном времени + REST API
 
