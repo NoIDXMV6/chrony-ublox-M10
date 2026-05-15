@@ -17,6 +17,8 @@ PPS-дисциплинированный NTP-сервер первого стр�
 
 **Мониторинг:** 🌐 [Веб-интерфейс](monitor/README.md) в реальном времени + REST API
 
+**ВАЖНО** Если вам нужна большая точность - не покупайте дешевый позиционный модуль! Из доступных есть [Quectel LG290P Chipset Quad-band GNSS Module RTK Centimeter-Level Positioning Board L1+L2+L5+E6 Positioning](https://www.aliexpress.com/item/1005010589099378.html). С ним результаты будут гораздо точнее.
+
 ---
 
 ## Содержание
