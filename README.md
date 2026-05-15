@@ -516,7 +516,7 @@ chronyc sources -v > ~/chrony_sources.txt
 
 - 📖 [Chrony Documentation](https://chrony-project.org/documentation.html)
 - 📖 [gpsd Documentation](https://gpsd.gitlab.io/gpsd/)
-- 📖 [u-blox M10 Product Page]([https://www.u-blox.com/en/product/m10-platform](https://www.u-blox.com/en/product/ubx-m10-series)
+- 📖 [u-blox M10 Product Page](https://www.u-blox.com/en/product/ubx-m10-series)
 - 📋 [Raspberry Pi GPIO Reference](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html)
 
 ---
