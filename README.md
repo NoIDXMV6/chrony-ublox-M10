@@ -6,7 +6,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Raspberry%20Pi%204-c51a4a)](https://www.raspberrypi.com/)
 [![OS](https://img.shields.io/badge/OS-Armbian%20Trixie%20(Debian%2013)-blue)](https://www.armbian.com/)
 [![Stratum](https://img.shields.io/badge/NTP-Stratum%201-brightgreen)]()
-[![Accuracy](https://img.shields.io/badge/Accuracy-150–300%20ns-brightgreen)]()
+[![Accuracy](https://img.shields.io/badge/Accuracy-150–300%20ms-brightred)]()
 
 PPS-дисциплинированный NTP-сервер Stratum 1 на базе Raspberry Pi 4 и GNSS-модуля u-blox M10 с поддержкой GPS, GLONASS, Galileo и BeiDou. Точность синхронизации 150–300 нс. Включает веб-дашборд мониторинга с REST API и Telegram-оповещениями.
 
