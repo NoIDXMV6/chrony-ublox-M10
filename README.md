@@ -8,7 +8,7 @@
 [![Stratum](https://img.shields.io/badge/NTP-Stratum%201-brightgreen)]()
 [![Accuracy](https://img.shields.io/badge/Accuracy-150–300%20ns-brightgreen)]()
 
-PPS-дисциплинированный NTP-сервер первого стратума на базе Raspberry Pi 4 и GNSS-модуля u-blox M10 с поддержкой GPS, GLONASS, Galileo и BeiDou. Точность синхронизации 150–300 нс. Включает веб-дашборд мониторинга с REST API и Telegram-оповещениями.
+PPS-дисциплинированный NTP-сервер Stratum 1 на базе Raspberry Pi 4 и GNSS-модуля u-blox M10 с поддержкой GPS, GLONASS, Galileo и BeiDou. Точность синхронизации 150–300 нс. Включает веб-дашборд мониторинга с REST API и Telegram-оповещениями.
 
 **Платформа:** Raspberry Pi 4 · Armbian Trixie (Debian 13) · ядро 6.x  
 **GNSS модуль:** QUESCAN UBX-M10050-KB (u-blox M10) с PPS · [Купить на AliExpress](https://ali.click/egbg811)
