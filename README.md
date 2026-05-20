@@ -19,6 +19,10 @@ PPS-дисциплинированный NTP-сервер Stratum 1 на баз�
 
 **ВАЖНО:** Если вам нужна большая точность - не покупайте дешевый позиционный модуль! Из доступных тайминговых есть [Quectel LG290P Chipset Quad-band GNSS Module RTK Centimeter-Level Positioning Board L1+L2+L5+E6 Positioning](https://www.aliexpress.com/item/1005010589099378.html). С ним результаты будут гораздо точнее. Но и цена в 10 раз выше. Для домашних целей точности М10 достаточно.
 
+**Статистика сервера времени:**  
+<img width="70" height="85" alt="featured-ntppool" src="https://github.com/user-attachments/assets/37ffc464-51e7-46e8-bf2b-b5a9f0c4435b" />  
+<img width="657" height="453" alt="Screenshot_3" src="https://github.com/user-attachments/assets/f6f40662-5a5d-4955-b5c2-556840a3b207" />
+
 ---
 
 ## Содержание
